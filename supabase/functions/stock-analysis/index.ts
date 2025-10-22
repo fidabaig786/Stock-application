@@ -543,11 +543,11 @@ async function calculateMRT(ticker: string, apiKey: string): Promise<{ status: s
       const windowData = closes.slice(i - window + 1, i + 1);
       
       // Calculate MA
-      const ma = windowData.reduce((sum, val) => sum + val, 0) / window;
+      const ma = windowData.reduce((sum: number, val: number) => sum + val, 0) / window;
       
       // Calculate STD
-      const squaredDiffs = windowData.map(val => Math.pow(val - ma, 2));
-      const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / window;
+      const squaredDiffs = windowData.map((val: number) => Math.pow(val - ma, 2));
+      const variance = squaredDiffs.reduce((sum: number, val: number) => sum + val, 0) / window;
       const std = Math.sqrt(variance);
       
       // Calculate Z-Score

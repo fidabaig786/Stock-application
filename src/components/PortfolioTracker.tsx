@@ -544,6 +544,7 @@ export const PortfolioTracker: React.FC = () => {
                   <h3 className="text-lg font-semibold">Active Positions</h3>
                   {positions.filter(p => p.holding === 1).map((position) => {
                 const metrics = calculateMetrics(position);
+                const nearStopLoss = isNearStopLoss(position);
                 const dollarChangePercent = totalMetrics.totalDollarChange !== 0 
                   ? (metrics.dollarChange / totalMetrics.totalDollarChange * 100).toFixed(1)
                   : '0.0';
@@ -569,6 +570,12 @@ export const PortfolioTracker: React.FC = () => {
                                 <Badge variant="destructive" className="flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
                                   Stop Loss Not Set
+                                </Badge>
+                              )}
+                              {nearStopLoss && (
+                                <Badge variant="outline" className="flex items-center gap-1 border-orange-500 text-orange-500">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Near Stop Loss
                                 </Badge>
                               )}
                             </div>
@@ -697,6 +704,12 @@ export const PortfolioTracker: React.FC = () => {
                               <Badge variant="default" className="bg-orange-500 hover:bg-orange-600">
                                 SOLD
                               </Badge>
+                              {position.stop_loss_price && (
+                                <Badge variant="destructive" className="flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Stop Loss Triggered
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">{position.shares} shares (SOLD)</p>
                           </div>

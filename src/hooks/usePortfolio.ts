@@ -141,13 +141,40 @@ export const usePortfolio = (userId: string | undefined) => {
 
       if (error) throw error;
 
-      const updatedPositions = positions.map(pos => ({
-        ...pos,
-        current_price: data.prices[pos.ticker],
-        index_current_price: data.prices[pos.index_ticker]
-      }));
+      const updatedPositions = positions.map(pos => {
+        const currentPrice = data.prices[pos.ticker];
+        const indexCurrentPrice = data.prices[pos.index_ticker];
+        
+        // Check if stop loss is triggered
+        const stopLossTriggered = pos.stop_loss_price && currentPrice && 
+                                   currentPrice <= pos.stop_loss_price && 
+                                   pos.holding === 1;
+        
+        return {
+          ...pos,
+          current_price: currentPrice,
+          index_current_price: indexCurrentPrice
+        };
+      });
 
       setPositions(updatedPositions);
+
+      // Update positions in database where stop loss is triggered
+      for (const pos of updatedPositions) {
+        const currentPrice = pos.current_price;
+        const stopLossTriggered = pos.stop_loss_price && currentPrice && 
+                                   currentPrice <= pos.stop_loss_price && 
+                                   pos.holding === 1;
+        
+        if (stopLossTriggered) {
+          await updatePosition(pos.id, { holding: 0 });
+          toast({
+            title: "Stop Loss Triggered",
+            description: `${pos.ticker} sold at stop loss price of $${pos.stop_loss_price.toFixed(2)}`,
+            variant: "destructive",
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching current prices:', error);
     }
