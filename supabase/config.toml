@@ -1,4 +1,1 @@
 project_id = "ewvdjypgzfpoldttblhs"
-
-[functions.get-current-prices]
-verify_jwt = false
