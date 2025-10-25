@@ -220,6 +220,9 @@ export const PortfolioTracker: React.FC = () => {
 
   // Calculate top gainer/loser in last 5 days (active positions only)
   const activePositions = positions.filter(p => p.holding === 1);
+  const soldPositions = positions.filter(
+    p => p.holding === 0 && !activePositions.some(ap => ap.ticker === p.ticker)
+  );
   
   // Calculate total invested and remaining cash
   const totalInvested = activePositions.reduce((sum, pos) => {
@@ -675,10 +678,10 @@ export const PortfolioTracker: React.FC = () => {
               )}
 
               {/* Sold Positions */}
-              {positions.filter(p => p.holding === 0).length > 0 && (
+              {soldPositions.length > 0 && (
                 <div className="space-y-4 mt-8">
                   <h3 className="text-lg font-semibold">Sold Positions</h3>
-                  {positions.filter(p => p.holding === 0).map((position) => {
+                  {soldPositions.map((position) => {
                 const metrics = calculateMetrics(position);
                 const dollarChangePercent = totalMetrics.totalDollarChange !== 0 
                   ? (metrics.dollarChange / totalMetrics.totalDollarChange * 100).toFixed(1)
