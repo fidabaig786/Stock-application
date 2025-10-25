@@ -159,21 +159,41 @@ export const usePortfolio = (userId: string | undefined) => {
 
       setPositions(updatedPositions);
 
-      // Update positions in database where stop loss is triggered
-      for (const pos of updatedPositions) {
+      // Batch update positions in database where stop loss is triggered to avoid race conditions
+      const triggered = updatedPositions.filter((pos) => {
         const currentPrice = pos.current_price;
-        const stopLossTriggered = pos.stop_loss_price && currentPrice && 
-                                   currentPrice <= pos.stop_loss_price && 
-                                   pos.holding === 1;
-        
-        if (stopLossTriggered) {
-          await updatePosition(pos.id, { holding: 0 });
+        return Boolean(
+          pos.stop_loss_price &&
+          typeof currentPrice === 'number' &&
+          currentPrice <= (pos.stop_loss_price as number) &&
+          pos.holding === 1
+        );
+      });
+
+      if (triggered.length > 0) {
+        const { error: updateError } = await supabase
+          .from('portfolio_positions')
+          .update({ holding: 0 })
+          .in('id', triggered.map((p) => p.id));
+
+        if (updateError) throw updateError;
+
+        // Optimistically update local state so UI reflects "SOLD" immediately
+        setPositions(prev =>
+          prev.map(p => (triggered.find(t => t.id === p.id) ? { ...p, holding: 0 } : p))
+        );
+
+        // Toast for each sold ticker
+        triggered.forEach((p) => {
           toast({
             title: "Stop Loss Triggered",
-            description: `${pos.ticker} sold at stop loss price of $${pos.stop_loss_price.toFixed(2)}`,
+            description: `${p.ticker} sold at stop loss price of $${(p.stop_loss_price ?? 0).toFixed(2)}`,
             variant: "destructive",
           });
-        }
+        });
+
+        // Refresh from DB to stay in sync
+        await fetchPositions();
       }
     } catch (error) {
       console.error('Error fetching current prices:', error);
