@@ -142,14 +142,8 @@ export const usePortfolio = (userId: string | undefined) => {
       if (error) throw error;
 
       const updatedPositions = positions.map(pos => {
-        const currentPrice = data.prices[pos.ticker];
-        const indexCurrentPrice = data.prices[pos.index_ticker];
-        
-        // Check if stop loss is triggered
-        const stopLossTriggered = pos.stop_loss_price && currentPrice && 
-                                   currentPrice <= pos.stop_loss_price && 
-                                   pos.holding === 1;
-        
+        const currentPrice = data?.prices?.[pos.ticker] as number | undefined;
+        const indexCurrentPrice = data?.prices?.[pos.index_ticker] as number | undefined;
         return {
           ...pos,
           current_price: currentPrice,
@@ -162,10 +156,21 @@ export const usePortfolio = (userId: string | undefined) => {
       // Batch update positions in database where stop loss is triggered to avoid race conditions
       const triggered = updatedPositions.filter((pos) => {
         const currentPrice = pos.current_price;
+        const dayLow = (data?.lows?.[pos.ticker] ?? undefined) as number | undefined;
+
+        const effectivePrice = Math.min(
+          typeof currentPrice === 'number' ? currentPrice : Number.POSITIVE_INFINITY,
+          typeof dayLow === 'number' ? dayLow : Number.POSITIVE_INFINITY
+        );
+
+        const stopLoss = typeof pos.stop_loss_price === 'number'
+          ? pos.stop_loss_price
+          : Number(pos.stop_loss_price);
+
         return Boolean(
-          pos.stop_loss_price &&
-          typeof currentPrice === 'number' &&
-          currentPrice <= (pos.stop_loss_price as number) &&
+          typeof stopLoss === 'number' && !Number.isNaN(stopLoss) &&
+          Number.isFinite(effectivePrice) &&
+          effectivePrice <= stopLoss &&
           pos.holding === 1
         );
       });
