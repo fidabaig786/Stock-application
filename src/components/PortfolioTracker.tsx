@@ -220,9 +220,30 @@ export const PortfolioTracker: React.FC = () => {
 
   // Calculate top gainer/loser in last 5 days (active positions only)
   const activePositions = positions.filter(p => p.holding === 1);
-  const soldPositions = positions.filter(
+  const rawSoldPositions = positions.filter(
     p => p.holding === 0 && !activePositions.some(ap => ap.ticker === p.ticker)
   );
+  const soldPositions = (() => {
+    const map = new Map<string, PortfolioPosition>();
+    for (const p of rawSoldPositions) {
+      const existing = map.get(p.ticker);
+      if (!existing) {
+        map.set(p.ticker, { ...p });
+      } else {
+        const totalShares = existing.shares + p.shares;
+        const avgBuyPrice = ((existing.buy_price * existing.shares) + (p.buy_price * p.shares)) / totalShares;
+        const avgIndexBuyPrice = ((existing.index_buy_price * existing.shares) + (p.index_buy_price * p.shares)) / totalShares;
+        map.set(p.ticker, {
+          ...existing,
+          shares: totalShares,
+          buy_price: avgBuyPrice,
+          index_buy_price: avgIndexBuyPrice,
+          comments: [existing.comments, p.comments].filter(Boolean).join(' | '),
+        });
+      }
+    }
+    return Array.from(map.values());
+  })();
   
   // Calculate total invested and remaining cash
   const totalInvested = activePositions.reduce((sum, pos) => {

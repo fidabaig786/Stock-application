@@ -197,8 +197,7 @@ export const usePortfolio = (userId: string | undefined) => {
           });
         });
 
-        // Refresh from DB to stay in sync
-        await fetchPositions();
+        // Skip immediate DB refresh to preserve current_price in local state
       }
     } catch (error) {
       console.error('Error fetching current prices:', error);
