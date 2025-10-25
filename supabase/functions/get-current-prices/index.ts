@@ -24,6 +24,22 @@ serve(async (req) => {
     // Fetch snapshot data (current price and intraday low) for all tickers
     for (const ticker of tickers) {
       try {
+        // 1) Try Polygon Last Trade (most up-to-date)
+        const lastTradeRes = await fetch(
+          `https://api.polygon.io/v2/last/trade/${ticker}?apiKey=${apiKey}`
+        );
+
+        let havePrice = false;
+        if (lastTradeRes.ok) {
+          const lastTrade = await lastTradeRes.json();
+          const p = lastTrade?.results?.p;
+          if (typeof p === 'number' && !Number.isNaN(p)) {
+            prices[ticker] = p;
+            havePrice = true;
+          }
+        }
+
+        // 2) Fetch snapshot for intraday low (and price if still missing)
         const snapshotRes = await fetch(
           `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${apiKey}`
         );
@@ -33,14 +49,17 @@ serve(async (req) => {
           const lastPrice = snap?.ticker?.lastTrade?.p ?? snap?.ticker?.prevDay?.c ?? undefined;
           const dayLow = snap?.ticker?.day?.l ?? snap?.ticker?.prevDay?.l ?? undefined;
 
-          if (typeof lastPrice === 'number' && !Number.isNaN(lastPrice)) {
+          if (!havePrice && typeof lastPrice === 'number' && !Number.isNaN(lastPrice)) {
             prices[ticker] = lastPrice;
+            havePrice = true;
           }
           if (typeof dayLow === 'number' && !Number.isNaN(dayLow)) {
             lows[ticker] = dayLow;
           }
-        } else {
-          // Fallback to previous aggregate endpoint
+        }
+
+        // 3) Final fallback: previous aggregate endpoint
+        if (!havePrice || typeof lows[ticker] !== 'number') {
           const response = await fetch(
             `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?apiKey=${apiKey}`
           );
@@ -48,8 +67,8 @@ serve(async (req) => {
             const data = await response.json();
             if (data?.results && data.results.length > 0) {
               const r = data.results[0];
-              if (typeof r.c === 'number') prices[ticker] = r.c; // close
-              if (typeof r.l === 'number') lows[ticker] = r.l;   // low
+              if (!havePrice && typeof r.c === 'number') prices[ticker] = r.c; // close
+              if (typeof lows[ticker] !== 'number' && typeof r.l === 'number') lows[ticker] = r.l;   // low
             }
           }
         }
