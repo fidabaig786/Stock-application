@@ -93,8 +93,9 @@ export const EmailNotificationSettings: React.FC = () => {
           email,
           email_notifications_enabled: enabled,
           notification_criteria: criteria as any,
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) throw error;
 
