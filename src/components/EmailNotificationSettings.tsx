@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Clock, Zap } from 'lucide-react';
+import { Mail, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,11 +28,6 @@ export const EmailNotificationSettings: React.FC = () => {
     mrt: false,
     macdCrossover: false,
   });
-  
-  const [zapierWebhook, setZapierWebhook] = useState('');
-  const [testingWebhook, setTestingWebhook] = useState(false);
-
-  const scheduledAnalysisUrl = `https://ewvdjypgzfpoldttblhs.supabase.co/functions/v1/scheduled-analysis`;
 
   useEffect(() => {
     loadSettings();
@@ -60,14 +55,8 @@ export const EmailNotificationSettings: React.FC = () => {
           setOptionCriteria({
             mrt: criteria.option.includes('mrt'),
             macdCrossover: criteria.option.includes('macdCrossover'),
-          });
+        });
         }
-      }
-
-      // Load Zapier webhook from localStorage
-      const savedWebhook = localStorage.getItem('zapier_webhook_url');
-      if (savedWebhook) {
-        setZapierWebhook(savedWebhook);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -109,11 +98,6 @@ export const EmailNotificationSettings: React.FC = () => {
 
       if (error) throw error;
 
-      // Save Zapier webhook to localStorage
-      if (zapierWebhook) {
-        localStorage.setItem('zapier_webhook_url', zapierWebhook);
-      }
-
       toast({
         title: "Settings Saved",
         description: "Your email notification preferences have been updated",
@@ -127,44 +111,6 @@ export const EmailNotificationSettings: React.FC = () => {
       });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const testWebhook = async () => {
-    if (!zapierWebhook) {
-      toast({
-        title: "Webhook URL Required",
-        description: "Please enter your Zapier webhook URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTestingWebhook(true);
-    try {
-      await fetch(zapierWebhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        mode: "no-cors",
-        body: JSON.stringify({
-          test: true,
-          timestamp: new Date().toISOString(),
-          message: "Test trigger from Ticker Triumph",
-        }),
-      });
-
-      toast({
-        title: "Test Sent",
-        description: "Check your Zap history to confirm it was triggered",
-      });
-    } catch (error) {
-      toast({
-        title: "Test Failed",
-        description: "Failed to trigger webhook. Check the URL and try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setTestingWebhook(false);
     }
   };
 
@@ -257,49 +203,10 @@ export const EmailNotificationSettings: React.FC = () => {
           <div className="flex items-start gap-2">
             <Clock className="h-5 w-5 text-primary mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-medium mb-2">Automated Scheduling</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                Set up automatic analysis runs using Zapier's Schedule trigger
+              <h4 className="font-medium mb-2">Automated Daily Analysis</h4>
+              <p className="text-sm text-muted-foreground">
+                Analysis runs automatically every day at 9:00 AM EST. When stocks in your watchlist meet your selected criteria, you'll receive an email notification.
               </p>
-              
-              <Alert className="mb-3">
-                <Zap className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  <strong>Setup Instructions:</strong>
-                  <ol className="list-decimal ml-4 mt-2 space-y-1">
-                    <li>Create a new Zap in Zapier</li>
-                    <li>Add "Schedule by Zapier" as trigger (e.g., every day at 9 AM)</li>
-                    <li>Add "Webhooks by Zapier" as action</li>
-                    <li>Choose "POST" method</li>
-                    <li>Use this URL: <code className="text-xs bg-muted px-1 py-0.5 rounded break-all">{scheduledAnalysisUrl}</code></li>
-                    <li>Copy your Zap's webhook URL below to test</li>
-                  </ol>
-                </AlertDescription>
-              </Alert>
-
-              <div className="space-y-2">
-                <Label htmlFor="zapier-webhook" className="text-sm">
-                  Zapier Webhook URL (optional, for testing)
-                </Label>
-                <Input
-                  id="zapier-webhook"
-                  type="url"
-                  placeholder="https://hooks.zapier.com/hooks/catch/..."
-                  value={zapierWebhook}
-                  onChange={(e) => setZapierWebhook(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <Button
-                  onClick={testWebhook}
-                  disabled={testingWebhook || !zapierWebhook}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  {testingWebhook ? 'Testing...' : 'Test Webhook'}
-                </Button>
-              </div>
             </div>
           </div>
         </div>
