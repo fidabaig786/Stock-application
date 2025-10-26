@@ -1,0 +1,201 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    console.log('Starting scheduled analysis...');
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get all users who have email notifications enabled
+    const { data: usersWithNotifications, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('user_id, email, email_notifications_enabled, notification_criteria')
+      .eq('email_notifications_enabled', true);
+
+    if (settingsError) {
+      console.error('Error fetching user settings:', settingsError);
+      throw settingsError;
+    }
+
+    if (!usersWithNotifications || usersWithNotifications.length === 0) {
+      console.log('No users with email notifications enabled');
+      return new Response(
+        JSON.stringify({ message: 'No users to process' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Processing ${usersWithNotifications.length} users with notifications enabled`);
+
+    // Process each user
+    for (const userSettings of usersWithNotifications) {
+      try {
+        console.log(`Processing user ${userSettings.user_id}`);
+
+        // Get user's watchlist
+        const { data: watchlist, error: watchlistError } = await supabase
+          .from('watchlist_items')
+          .select('ticker, asset_type')
+          .eq('user_id', userSettings.user_id);
+
+        if (watchlistError || !watchlist || watchlist.length === 0) {
+          console.log(`No watchlist for user ${userSettings.user_id}`);
+          continue;
+        }
+
+        console.log(`User has ${watchlist.length} items in watchlist`);
+
+        // Get notification criteria for each asset type
+        const notifCriteria = userSettings.notification_criteria || {};
+        
+        // Process options if user has option criteria
+        if (notifCriteria.option && Array.isArray(notifCriteria.option) && notifCriteria.option.length > 0) {
+          const optionWatchlist = watchlist.filter(item => item.asset_type === 'Option');
+          
+          if (optionWatchlist.length > 0) {
+            console.log(`Running analysis for ${optionWatchlist.length} options`);
+            
+            // Build criteria object
+            const criteria = {
+              mrt: notifCriteria.option.includes('mrt'),
+              rsiConfirmation: notifCriteria.option.includes('rsiConfirmation'),
+              dmiConfirmation: notifCriteria.option.includes('dmiConfirmation'),
+              emaCrossover: notifCriteria.option.includes('emaCrossover'),
+              macdCrossover: notifCriteria.option.includes('macdCrossover'),
+              weeklyMacd: notifCriteria.option.includes('weeklyMacd'),
+              burst: false, // Not applicable for options
+            };
+
+            // Call stock-analysis function
+            const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+              'stock-analysis',
+              {
+                body: {
+                  watchlist: optionWatchlist.map(item => ({
+                    ticker: item.ticker,
+                    assetType: item.asset_type,
+                  })),
+                  criteria,
+                },
+              }
+            );
+
+            if (analysisError) {
+              console.error(`Analysis error for user ${userSettings.user_id}:`, analysisError);
+              continue;
+            }
+
+            // Check for passed stocks
+            const passedStocks = analysisData?.results?.filter((r: any) => r.passed) || [];
+            
+            console.log(`Found ${passedStocks.length} options that passed criteria`);
+
+            // Send email for each passed stock
+            for (const stock of passedStocks) {
+              console.log(`Sending email for ${stock.ticker} to ${userSettings.email}`);
+              
+              await supabase.functions.invoke('send-alert-email', {
+                body: {
+                  email: userSettings.email,
+                  ticker: stock.ticker,
+                  assetType: stock.assetType,
+                  metCriteria: notifCriteria.option,
+                  price: parseFloat(stock.currentPrice.replace('$', '')),
+                },
+              });
+            }
+          }
+        }
+
+        // Process stocks if user has stock criteria
+        if (notifCriteria.stock && Array.isArray(notifCriteria.stock) && notifCriteria.stock.length > 0) {
+          const stockWatchlist = watchlist.filter(item => item.asset_type === 'Stock');
+          
+          if (stockWatchlist.length > 0) {
+            console.log(`Running analysis for ${stockWatchlist.length} stocks`);
+            
+            const criteria = {
+              mrt: false, // Not applicable for stocks
+              rsiConfirmation: notifCriteria.stock.includes('rsiConfirmation'),
+              dmiConfirmation: notifCriteria.stock.includes('dmiConfirmation'),
+              emaCrossover: notifCriteria.stock.includes('emaCrossover'),
+              macdCrossover: notifCriteria.stock.includes('macdCrossover'),
+              weeklyMacd: notifCriteria.stock.includes('weeklyMacd'),
+              burst: notifCriteria.stock.includes('burst'),
+            };
+
+            const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+              'stock-analysis',
+              {
+                body: {
+                  watchlist: stockWatchlist.map(item => ({
+                    ticker: item.ticker,
+                    assetType: item.asset_type,
+                  })),
+                  criteria,
+                },
+              }
+            );
+
+            if (analysisError) {
+              console.error(`Analysis error for user ${userSettings.user_id}:`, analysisError);
+              continue;
+            }
+
+            const passedStocks = analysisData?.results?.filter((r: any) => r.passed) || [];
+            console.log(`Found ${passedStocks.length} stocks that passed criteria`);
+
+            for (const stock of passedStocks) {
+              console.log(`Sending email for ${stock.ticker} to ${userSettings.email}`);
+              
+              await supabase.functions.invoke('send-alert-email', {
+                body: {
+                  email: userSettings.email,
+                  ticker: stock.ticker,
+                  assetType: stock.assetType,
+                  metCriteria: notifCriteria.stock,
+                  price: parseFloat(stock.currentPrice.replace('$', '')),
+                },
+              });
+            }
+          }
+        }
+      } catch (userError) {
+        console.error(`Error processing user ${userSettings.user_id}:`, userError);
+        // Continue with next user
+      }
+    }
+
+    console.log('Scheduled analysis completed');
+
+    return new Response(
+      JSON.stringify({ 
+        message: 'Scheduled analysis completed',
+        usersProcessed: usersWithNotifications.length 
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Scheduled analysis error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
