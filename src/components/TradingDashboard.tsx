@@ -13,6 +13,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { WatchlistManager } from './WatchlistManager';
 import { AnalysisResults } from './AnalysisResults';
 import { PortfolioTracker } from './PortfolioTracker';
+import { EmailNotificationSettings } from './EmailNotificationSettings';
 
 // Moved to useWatchlist hook
 
@@ -196,10 +197,11 @@ export const TradingDashboard: React.FC = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="watchlist" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
           </TabsList>
 
           <TabsContent value="watchlist">
@@ -401,6 +403,10 @@ export const TradingDashboard: React.FC = () => {
 
           <TabsContent value="portfolio" className="space-y-6">
             <PortfolioTracker />
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <EmailNotificationSettings />
           </TabsContent>
         </Tabs>
       </div>

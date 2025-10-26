@@ -802,9 +802,14 @@ Deno.serve(async (req) => {
 
     // Process each ticker sequentially to avoid API burst and ensure determinism
     const analysisResults: AnalysisResult[] = [];
+    const resultFlags = new Map<string, Record<string, boolean>>(); // Store flags for each ticker
+    
     for (const stock of watchlist) {
       const { price, historicalData } = await fetchStockData(stock.ticker, polygonApiKey, stock.assetType);
       const { statuses, flags } = await calculateTechnicalIndicators(historicalData, stock.ticker, criteria, polygonApiKey, stock.assetType);
+      
+      // Store flags for this ticker
+      resultFlags.set(stock.ticker, flags);
       
       // Count how many criteria are met
       let criteriaMetCount = 0;
@@ -868,6 +873,75 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Analysis completed: ${analysisResults.filter(r => r.passed).length}/${analysisResults.length} stocks passed`);
+
+    // Check if user wants email notifications
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        // Create a Supabase client with the user's auth token
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        );
+
+        // Get user settings to check email notifications
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (user) {
+          const { data: settings } = await supabaseClient
+            .from('user_settings')
+            .select('email, email_notifications_enabled, notification_criteria')
+            .eq('user_id', user.id)
+            .single();
+
+          if (settings?.email_notifications_enabled && settings.email) {
+            console.log('Email notifications enabled, checking for matches...');
+            
+            // Check passed stocks against notification criteria
+            for (const result of analysisResults.filter(r => r.passed)) {
+              const notifCriteria = settings.notification_criteria || {};
+              const assetKey = result.assetType.toLowerCase();
+              const userCriteriaForAsset = notifCriteria[assetKey] || [];
+              
+              // Get criteria that passed for this ticker using stored flags
+              const tickerFlags = resultFlags.get(result.ticker);
+              const metCriteria: string[] = [];
+              
+              if (tickerFlags) {
+                Object.entries(tickerFlags).forEach(([key, value]) => {
+                  if (value && criteria[key as keyof typeof criteria]) {
+                    metCriteria.push(key);
+                  }
+                });
+              }
+
+              // Check if the met criteria match user's notification preferences
+              const shouldNotify = userCriteriaForAsset.length > 0 && 
+                userCriteriaForAsset.every((c: string) => metCriteria.includes(c));
+
+              if (shouldNotify) {
+                console.log(`Sending email for ${result.ticker} to ${settings.email}`);
+                
+                // Send email notification
+                await supabaseClient.functions.invoke('send-alert-email', {
+                  body: {
+                    email: settings.email,
+                    ticker: result.ticker,
+                    assetType: result.assetType,
+                    metCriteria: userCriteriaForAsset,
+                    price: parseFloat(result.currentPrice.replace('$', '')),
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (emailError) {
+      console.error('Error checking/sending email notifications:', emailError);
+      // Don't fail the whole analysis if email fails
+    }
 
     return new Response(
       JSON.stringify({ results: analysisResults }),

@@ -263,7 +263,10 @@ export type Database = {
         Row: {
           cash_balance: number | null
           created_at: string
+          email: string | null
+          email_notifications_enabled: boolean | null
           id: string
+          notification_criteria: Json | null
           polygon_api_key: string | null
           updated_at: string
           user_id: string
@@ -271,7 +274,10 @@ export type Database = {
         Insert: {
           cash_balance?: number | null
           created_at?: string
+          email?: string | null
+          email_notifications_enabled?: boolean | null
           id?: string
+          notification_criteria?: Json | null
           polygon_api_key?: string | null
           updated_at?: string
           user_id: string
@@ -279,7 +285,10 @@ export type Database = {
         Update: {
           cash_balance?: number | null
           created_at?: string
+          email?: string | null
+          email_notifications_enabled?: boolean | null
           id?: string
+          notification_criteria?: Json | null
           polygon_api_key?: string | null
           updated_at?: string
           user_id?: string
