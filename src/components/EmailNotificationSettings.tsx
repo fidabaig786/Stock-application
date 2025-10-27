@@ -25,8 +25,8 @@ export const EmailNotificationSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   
   const [optionCriteria, setOptionCriteria] = useState({
-    mrt: false,
-    macdCrossover: false,
+    weeklyMacd: true,
+    burst: true,
   });
 
   useEffect(() => {
@@ -53,9 +53,9 @@ export const EmailNotificationSettings: React.FC = () => {
         const criteria = data.notification_criteria as NotificationCriteria || {};
         if (criteria.option) {
           setOptionCriteria({
-            mrt: criteria.option.includes('mrt'),
-            macdCrossover: criteria.option.includes('macdCrossover'),
-        });
+            weeklyMacd: criteria.option.includes('weeklyMacd'),
+            burst: criteria.option.includes('burst'),
+          });
         }
       }
     } catch (error) {
@@ -83,8 +83,8 @@ export const EmailNotificationSettings: React.FC = () => {
         option: []
       };
 
-      if (optionCriteria.mrt) criteria.option!.push('mrt');
-      if (optionCriteria.macdCrossover) criteria.option!.push('macdCrossover');
+      if (optionCriteria.weeklyMacd) criteria.option!.push('weeklyMacd');
+      if (optionCriteria.burst) criteria.option!.push('burst');
 
       const { error } = await supabase
         .from('user_settings')
@@ -170,26 +170,26 @@ export const EmailNotificationSettings: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="mrt-notify"
-                    checked={optionCriteria.mrt}
+                    id="weekly-macd-notify"
+                    checked={optionCriteria.weeklyMacd}
                     onCheckedChange={(checked) =>
-                      setOptionCriteria(prev => ({ ...prev, mrt: checked as boolean }))
+                      setOptionCriteria(prev => ({ ...prev, weeklyMacd: checked as boolean }))
                     }
                   />
-                  <Label htmlFor="mrt-notify" className="text-sm font-normal">
-                    MRT condition
+                  <Label htmlFor="weekly-macd-notify" className="text-sm font-normal">
+                    Weekly MACD
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="macd-notify"
-                    checked={optionCriteria.macdCrossover}
+                    id="burst-notify"
+                    checked={optionCriteria.burst}
                     onCheckedChange={(checked) =>
-                      setOptionCriteria(prev => ({ ...prev, macdCrossover: checked as boolean }))
+                      setOptionCriteria(prev => ({ ...prev, burst: checked as boolean }))
                     }
                   />
-                  <Label htmlFor="macd-notify" className="text-sm font-normal">
-                    MACD Crossover
+                  <Label htmlFor="burst-notify" className="text-sm font-normal">
+                    Burst
                   </Label>
                 </div>
               </div>
@@ -204,9 +204,9 @@ export const EmailNotificationSettings: React.FC = () => {
           <div className="flex items-start gap-2">
             <Clock className="h-5 w-5 text-primary mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-medium mb-2">Automated Daily Analysis</h4>
+              <h4 className="font-medium mb-2">Automated Continuous Analysis</h4>
               <p className="text-sm text-muted-foreground">
-                Analysis runs automatically every day at 9:00 AM EST. When stocks in your watchlist meet your selected criteria, you'll receive an email notification.
+                Analysis runs automatically every 20 minutes throughout the day. When stocks in your watchlist meet your selected criteria, you'll receive an email notification. You'll only get one email per status change (when criteria goes from not met to met).
               </p>
             </div>
           </div>

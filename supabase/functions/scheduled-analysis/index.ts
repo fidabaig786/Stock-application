@@ -75,7 +75,7 @@ serve(async (req) => {
               emaCrossover: notifCriteria.option.includes('emaCrossover'),
               macdCrossover: notifCriteria.option.includes('macdCrossover'),
               weeklyMacd: notifCriteria.option.includes('weeklyMacd'),
-              burst: false, // Not applicable for options
+              burst: notifCriteria.option.includes('burst'),
             };
 
             // Call stock-analysis function
@@ -97,24 +97,63 @@ serve(async (req) => {
               continue;
             }
 
-            // Check for passed stocks
-            const passedStocks = analysisData?.results?.filter((r: any) => r.passed) || [];
+            // Process all results and check notification status
+            const allResults = analysisData?.results || [];
             
-            console.log(`Found ${passedStocks.length} options that passed criteria`);
-
-            // Send email for each passed stock
-            for (const stock of passedStocks) {
-              console.log(`Sending email for ${stock.ticker} to ${userSettings.email}`);
+            for (const stock of allResults) {
+              const passed = stock.passed;
               
-              await supabase.functions.invoke('send-alert-email', {
-                body: {
-                  email: userSettings.email,
-                  ticker: stock.ticker,
-                  assetType: stock.assetType,
-                  metCriteria: notifCriteria.option,
-                  price: parseFloat(stock.currentPrice.replace('$', '')),
-                },
-              });
+              // Check previous notification status
+              const { data: prevStatus } = await supabase
+                .from('notification_status')
+                .select('*')
+                .eq('user_id', userSettings.user_id)
+                .eq('ticker', stock.ticker)
+                .eq('asset_type', 'Option')
+                .maybeSingle();
+
+              // Send email only if status changed from false to true
+              if (passed && (!prevStatus || !prevStatus.criteria_met)) {
+                console.log(`Sending email for ${stock.ticker} to ${userSettings.email} (status changed)`);
+                
+                await supabase.functions.invoke('send-alert-email', {
+                  body: {
+                    email: userSettings.email,
+                    ticker: stock.ticker,
+                    assetType: stock.assetType,
+                    metCriteria: notifCriteria.option,
+                    price: parseFloat(stock.currentPrice.replace('$', '')),
+                  },
+                });
+
+                // Update status with email sent timestamp
+                await supabase
+                  .from('notification_status')
+                  .upsert({
+                    user_id: userSettings.user_id,
+                    ticker: stock.ticker,
+                    asset_type: 'Option',
+                    criteria_met: true,
+                    last_email_sent_at: new Date().toISOString(),
+                    last_checked_at: new Date().toISOString(),
+                  }, {
+                    onConflict: 'user_id,ticker,asset_type'
+                  });
+              } else {
+                // Update status without sending email
+                await supabase
+                  .from('notification_status')
+                  .upsert({
+                    user_id: userSettings.user_id,
+                    ticker: stock.ticker,
+                    asset_type: 'Option',
+                    criteria_met: passed,
+                    last_checked_at: new Date().toISOString(),
+                    ...(prevStatus?.last_email_sent_at && { last_email_sent_at: prevStatus.last_email_sent_at }),
+                  }, {
+                    onConflict: 'user_id,ticker,asset_type'
+                  });
+              }
             }
           }
         }
@@ -154,21 +193,63 @@ serve(async (req) => {
               continue;
             }
 
-            const passedStocks = analysisData?.results?.filter((r: any) => r.passed) || [];
-            console.log(`Found ${passedStocks.length} stocks that passed criteria`);
-
-            for (const stock of passedStocks) {
-              console.log(`Sending email for ${stock.ticker} to ${userSettings.email}`);
+            // Process all results and check notification status
+            const allResults = analysisData?.results || [];
+            
+            for (const stock of allResults) {
+              const passed = stock.passed;
               
-              await supabase.functions.invoke('send-alert-email', {
-                body: {
-                  email: userSettings.email,
-                  ticker: stock.ticker,
-                  assetType: stock.assetType,
-                  metCriteria: notifCriteria.stock,
-                  price: parseFloat(stock.currentPrice.replace('$', '')),
-                },
-              });
+              // Check previous notification status
+              const { data: prevStatus } = await supabase
+                .from('notification_status')
+                .select('*')
+                .eq('user_id', userSettings.user_id)
+                .eq('ticker', stock.ticker)
+                .eq('asset_type', 'Stock')
+                .maybeSingle();
+
+              // Send email only if status changed from false to true
+              if (passed && (!prevStatus || !prevStatus.criteria_met)) {
+                console.log(`Sending email for ${stock.ticker} to ${userSettings.email} (status changed)`);
+                
+                await supabase.functions.invoke('send-alert-email', {
+                  body: {
+                    email: userSettings.email,
+                    ticker: stock.ticker,
+                    assetType: stock.assetType,
+                    metCriteria: notifCriteria.stock,
+                    price: parseFloat(stock.currentPrice.replace('$', '')),
+                  },
+                });
+
+                // Update status with email sent timestamp
+                await supabase
+                  .from('notification_status')
+                  .upsert({
+                    user_id: userSettings.user_id,
+                    ticker: stock.ticker,
+                    asset_type: 'Stock',
+                    criteria_met: true,
+                    last_email_sent_at: new Date().toISOString(),
+                    last_checked_at: new Date().toISOString(),
+                  }, {
+                    onConflict: 'user_id,ticker,asset_type'
+                  });
+              } else {
+                // Update status without sending email
+                await supabase
+                  .from('notification_status')
+                  .upsert({
+                    user_id: userSettings.user_id,
+                    ticker: stock.ticker,
+                    asset_type: 'Stock',
+                    criteria_met: passed,
+                    last_checked_at: new Date().toISOString(),
+                    ...(prevStatus?.last_email_sent_at && { last_email_sent_at: prevStatus.last_email_sent_at }),
+                  }, {
+                    onConflict: 'user_id,ticker,asset_type'
+                  });
+              }
             }
           }
         }

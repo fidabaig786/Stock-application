@@ -43,6 +43,42 @@ export type Database = {
           },
         ]
       }
+      notification_status: {
+        Row: {
+          asset_type: string
+          created_at: string
+          criteria_met: boolean
+          id: string
+          last_checked_at: string
+          last_email_sent_at: string | null
+          ticker: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_type: string
+          created_at?: string
+          criteria_met?: boolean
+          id?: string
+          last_checked_at?: string
+          last_email_sent_at?: string | null
+          ticker: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_type?: string
+          created_at?: string
+          criteria_met?: boolean
+          id?: string
+          last_checked_at?: string
+          last_email_sent_at?: string | null
+          ticker?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       portfolio_positions: {
         Row: {
           buy_date: string
