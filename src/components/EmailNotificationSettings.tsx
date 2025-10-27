@@ -34,6 +34,15 @@ export const EmailNotificationSettings: React.FC = () => {
     burst: true,
   });
 
+  const [stockCriteria, setStockCriteria] = useState({
+    rsiConfirmation: false,
+    dmiConfirmation: false,
+    emaCrossover: false,
+    macdCrossover: false,
+    weeklyMacd: false,
+    burst: false,
+  });
+
   useEffect(() => {
     loadSettings();
   }, [user]);
@@ -67,6 +76,16 @@ export const EmailNotificationSettings: React.FC = () => {
             burst: criteria.option.includes('burst'),
           });
         }
+        if (criteria.stock) {
+          setStockCriteria({
+            rsiConfirmation: criteria.stock.includes('rsiConfirmation'),
+            dmiConfirmation: criteria.stock.includes('dmiConfirmation'),
+            emaCrossover: criteria.stock.includes('emaCrossover'),
+            macdCrossover: criteria.stock.includes('macdCrossover'),
+            weeklyMacd: criteria.stock.includes('weeklyMacd'),
+            burst: criteria.stock.includes('burst'),
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -90,7 +109,8 @@ export const EmailNotificationSettings: React.FC = () => {
     try {
       // Build notification criteria
       const criteria: NotificationCriteria = {
-        option: []
+        option: [],
+        stock: []
       };
 
       if (optionCriteria.mrt) criteria.option!.push('mrt');
@@ -100,6 +120,13 @@ export const EmailNotificationSettings: React.FC = () => {
       if (optionCriteria.macdCrossover) criteria.option!.push('macdCrossover');
       if (optionCriteria.weeklyMacd) criteria.option!.push('weeklyMacd');
       if (optionCriteria.burst) criteria.option!.push('burst');
+
+      if (stockCriteria.rsiConfirmation) criteria.stock!.push('rsiConfirmation');
+      if (stockCriteria.dmiConfirmation) criteria.stock!.push('dmiConfirmation');
+      if (stockCriteria.emaCrossover) criteria.stock!.push('emaCrossover');
+      if (stockCriteria.macdCrossover) criteria.stock!.push('macdCrossover');
+      if (stockCriteria.weeklyMacd) criteria.stock!.push('weeklyMacd');
+      if (stockCriteria.burst) criteria.stock!.push('burst');
 
       const { error } = await supabase
         .from('user_settings')
@@ -179,9 +206,10 @@ export const EmailNotificationSettings: React.FC = () => {
         </div>
 
         {enabled && (
-          <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-            <div>
-              <h4 className="font-medium mb-3">Notify me when Options meet:</h4>
+          <div className="space-y-6">
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <div>
+                <h4 className="font-medium mb-3">Notify me when Options meet:</h4>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -268,9 +296,93 @@ export const EmailNotificationSettings: React.FC = () => {
                   </Label>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                You'll receive an email when BOTH selected criteria are met
-              </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You'll receive an email when ALL selected criteria are met
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <div>
+                <h4 className="font-medium mb-3">Notify me when Stocks meet:</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-rsi-notify"
+                      checked={stockCriteria.rsiConfirmation}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, rsiConfirmation: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-rsi-notify" className="text-sm font-normal">
+                      RSI Confirmation
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-dmi-notify"
+                      checked={stockCriteria.dmiConfirmation}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, dmiConfirmation: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-dmi-notify" className="text-sm font-normal">
+                      DMI Confirmation
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-ema-notify"
+                      checked={stockCriteria.emaCrossover}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, emaCrossover: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-ema-notify" className="text-sm font-normal">
+                      EMA Crossover
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-macd-notify"
+                      checked={stockCriteria.macdCrossover}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, macdCrossover: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-macd-notify" className="text-sm font-normal">
+                      MACD Crossover
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-weekly-macd-notify"
+                      checked={stockCriteria.weeklyMacd}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, weeklyMacd: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-weekly-macd-notify" className="text-sm font-normal">
+                      Weekly MACD
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stock-burst-notify"
+                      checked={stockCriteria.burst}
+                      onCheckedChange={(checked) =>
+                        setStockCriteria(prev => ({ ...prev, burst: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="stock-burst-notify" className="text-sm font-normal">
+                      Burst
+                    </Label>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You'll receive an email when ALL selected criteria are met
+                </p>
+              </div>
             </div>
           </div>
         )}
