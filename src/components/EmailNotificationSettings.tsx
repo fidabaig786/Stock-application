@@ -25,6 +25,11 @@ export const EmailNotificationSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   
   const [optionCriteria, setOptionCriteria] = useState({
+    mrt: false,
+    rsiConfirmation: false,
+    dmiConfirmation: false,
+    emaCrossover: false,
+    macdCrossover: false,
     weeklyMacd: true,
     burst: true,
   });
@@ -53,6 +58,11 @@ export const EmailNotificationSettings: React.FC = () => {
         const criteria = data.notification_criteria as NotificationCriteria || {};
         if (criteria.option) {
           setOptionCriteria({
+            mrt: criteria.option.includes('mrt'),
+            rsiConfirmation: criteria.option.includes('rsiConfirmation'),
+            dmiConfirmation: criteria.option.includes('dmiConfirmation'),
+            emaCrossover: criteria.option.includes('emaCrossover'),
+            macdCrossover: criteria.option.includes('macdCrossover'),
             weeklyMacd: criteria.option.includes('weeklyMacd'),
             burst: criteria.option.includes('burst'),
           });
@@ -83,6 +93,11 @@ export const EmailNotificationSettings: React.FC = () => {
         option: []
       };
 
+      if (optionCriteria.mrt) criteria.option!.push('mrt');
+      if (optionCriteria.rsiConfirmation) criteria.option!.push('rsiConfirmation');
+      if (optionCriteria.dmiConfirmation) criteria.option!.push('dmiConfirmation');
+      if (optionCriteria.emaCrossover) criteria.option!.push('emaCrossover');
+      if (optionCriteria.macdCrossover) criteria.option!.push('macdCrossover');
       if (optionCriteria.weeklyMacd) criteria.option!.push('weeklyMacd');
       if (optionCriteria.burst) criteria.option!.push('burst');
 
@@ -168,6 +183,66 @@ export const EmailNotificationSettings: React.FC = () => {
             <div>
               <h4 className="font-medium mb-3">Notify me when Options meet:</h4>
               <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="mrt-notify"
+                    checked={optionCriteria.mrt}
+                    onCheckedChange={(checked) =>
+                      setOptionCriteria(prev => ({ ...prev, mrt: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="mrt-notify" className="text-sm font-normal">
+                    MRT
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rsi-notify"
+                    checked={optionCriteria.rsiConfirmation}
+                    onCheckedChange={(checked) =>
+                      setOptionCriteria(prev => ({ ...prev, rsiConfirmation: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="rsi-notify" className="text-sm font-normal">
+                    RSI Confirmation
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dmi-notify"
+                    checked={optionCriteria.dmiConfirmation}
+                    onCheckedChange={(checked) =>
+                      setOptionCriteria(prev => ({ ...prev, dmiConfirmation: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="dmi-notify" className="text-sm font-normal">
+                    DMI Confirmation
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="ema-notify"
+                    checked={optionCriteria.emaCrossover}
+                    onCheckedChange={(checked) =>
+                      setOptionCriteria(prev => ({ ...prev, emaCrossover: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="ema-notify" className="text-sm font-normal">
+                    EMA Crossover
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="macd-notify"
+                    checked={optionCriteria.macdCrossover}
+                    onCheckedChange={(checked) =>
+                      setOptionCriteria(prev => ({ ...prev, macdCrossover: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="macd-notify" className="text-sm font-normal">
+                    MACD Crossover
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="weekly-macd-notify"
