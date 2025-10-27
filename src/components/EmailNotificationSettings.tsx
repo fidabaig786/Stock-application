@@ -25,11 +25,11 @@ export const EmailNotificationSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   
   const [optionCriteria, setOptionCriteria] = useState({
-    mrt: false,
+    mrt: true,
     rsiConfirmation: false,
     dmiConfirmation: false,
     emaCrossover: false,
-    macdCrossover: false,
+    macdCrossover: true,
     weeklyMacd: true,
     burst: true,
   });
@@ -37,10 +37,10 @@ export const EmailNotificationSettings: React.FC = () => {
   const [stockCriteria, setStockCriteria] = useState({
     rsiConfirmation: false,
     dmiConfirmation: false,
-    emaCrossover: false,
+    emaCrossover: true,
     macdCrossover: false,
     weeklyMacd: false,
-    burst: false,
+    burst: true,
   });
 
   useEffect(() => {
