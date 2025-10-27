@@ -27,8 +27,6 @@ export const EmailNotificationSettings: React.FC = () => {
   const [optionCriteria, setOptionCriteria] = useState({
     mrt: true,
     macdCrossover: true,
-    weeklyMacd: true,
-    burst: true,
   });
 
   const [stockCriteria, setStockCriteria] = useState({
@@ -62,8 +60,6 @@ export const EmailNotificationSettings: React.FC = () => {
           setOptionCriteria({
             mrt: criteria.option.includes('mrt'),
             macdCrossover: criteria.option.includes('macdCrossover'),
-            weeklyMacd: criteria.option.includes('weeklyMacd'),
-            burst: criteria.option.includes('burst'),
           });
         }
         if (criteria.stock) {
@@ -101,8 +97,6 @@ export const EmailNotificationSettings: React.FC = () => {
 
       if (optionCriteria.mrt) criteria.option!.push('mrt');
       if (optionCriteria.macdCrossover) criteria.option!.push('macdCrossover');
-      if (optionCriteria.weeklyMacd) criteria.option!.push('weeklyMacd');
-      if (optionCriteria.burst) criteria.option!.push('burst');
 
       if (stockCriteria.emaCrossover) criteria.stock!.push('emaCrossover');
       if (stockCriteria.burst) criteria.stock!.push('burst');
@@ -212,30 +206,6 @@ export const EmailNotificationSettings: React.FC = () => {
                     />
                     <Label htmlFor="macd-notify" className="text-sm font-normal">
                       MACD Crossover
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="weekly-macd-notify"
-                      checked={optionCriteria.weeklyMacd}
-                      onCheckedChange={(checked) =>
-                        setOptionCriteria(prev => ({ ...prev, weeklyMacd: checked as boolean }))
-                      }
-                    />
-                    <Label htmlFor="weekly-macd-notify" className="text-sm font-normal">
-                      Weekly MACD
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="burst-notify"
-                      checked={optionCriteria.burst}
-                      onCheckedChange={(checked) =>
-                        setOptionCriteria(prev => ({ ...prev, burst: checked as boolean }))
-                      }
-                    />
-                    <Label htmlFor="burst-notify" className="text-sm font-normal">
-                      Burst
                     </Label>
                   </div>
                 </div>
