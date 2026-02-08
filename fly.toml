@@ -1,15 +1,15 @@
-# fly.toml app configuration file generated for ticker-triumph-aa9v3g on 2025-08-08T21:28:31Z
+# fly.toml app configuration file generated for dhirajstokeapplication1 on 2026-02-08T16:42:28Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'ticker-triumph-aa9v3g'
-primary_region = 'fra'
+app = 'dhirajstokeapplication1'
+primary_region = 'ams'
 
 [build]
 
 [http_service]
-  internal_port = 80
+  internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
@@ -20,4 +20,4 @@ primary_region = 'fra'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 1024
+  memory_mb = 256
