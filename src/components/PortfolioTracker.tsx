@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, RefreshCw, Trash2, Edit2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { usePortfolio, PortfolioPosition } from '@/hooks/usePortfolio';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,7 @@ export const PortfolioTracker: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [cashBalance, setCashBalance] = useState<string>('0');
   const [isEditingCash, setIsEditingCash] = useState(false);
+  const [portfolioFilter, setPortfolioFilter] = useState<'active' | 'sold' | 'all'>('active');
   const [formData, setFormData] = useState({
     ticker: '',
     shares: '',
@@ -336,7 +338,17 @@ export const PortfolioTracker: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <Select value={portfolioFilter} onValueChange={(v: 'active' | 'sold' | 'all') => setPortfolioFilter(v)}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 variant="outline"
                 size="sm"
@@ -563,7 +575,7 @@ export const PortfolioTracker: React.FC = () => {
               )}
 
               {/* Active Positions */}
-              {positions.filter(p => p.holding === 1).length > 0 && (
+              {(portfolioFilter === 'active' || portfolioFilter === 'all') && positions.filter(p => p.holding === 1).length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Active Positions</h3>
                   {positions.filter(p => p.holding === 1).map((position) => {
@@ -699,7 +711,7 @@ export const PortfolioTracker: React.FC = () => {
               )}
 
               {/* Sold Positions */}
-              {soldPositions.length > 0 && (
+              {(portfolioFilter === 'sold' || portfolioFilter === 'all') && soldPositions.length > 0 && (
                 <div className="space-y-4 mt-8">
                   <h3 className="text-lg font-semibold">Sold Positions</h3>
                   {soldPositions.map((position) => {

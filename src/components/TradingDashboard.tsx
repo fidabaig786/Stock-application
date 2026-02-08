@@ -13,7 +13,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { WatchlistManager } from './WatchlistManager';
 import { AnalysisResults } from './AnalysisResults';
 import { PortfolioTracker } from './PortfolioTracker';
-
+import { WeeklyTechnicalMatrix } from './WeeklyTechnicalMatrix';
 
 // Moved to useWatchlist hook
 
@@ -84,10 +84,7 @@ export const TradingDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
   const { watchlist, addToWatchlist, removeFromWatchlist, isLoading } = useWatchlist();
 
-  // Watchlist functions moved to useWatchlist hook
-
   const runAnalysis = async () => {
-    // Filter watchlist by selected asset type
     const filteredWatchlist = watchlist.filter(stock => stock.assetType === selectedAssetType);
     
     if (filteredWatchlist.length === 0) {
@@ -168,41 +165,18 @@ export const TradingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* API Status */}
-        <Card className="bg-gradient-card shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              API Status
-            </CardTitle>
-            <CardDescription>
-              Real-time market data powered by Polygon.io
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-muted-foreground">API Connected & Validated</span>
-              </div>
-              <Badge variant="default" className="bg-green-500">
-                ✅ Secure
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              API key is securely stored and validated on the server
-            </p>
-          </CardContent>
-        </Card>
-
         {/* Main Content */}
-        <Tabs defaultValue="watchlist" className="space-y-6">
+        <Tabs defaultValue="matrix" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="matrix">Weekly Matrix</TabsTrigger>
             <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-            
           </TabsList>
+
+          <TabsContent value="matrix">
+            <WeeklyTechnicalMatrix />
+          </TabsContent>
 
           <TabsContent value="watchlist">
             <WatchlistManager 
@@ -253,7 +227,6 @@ export const TradingDashboard: React.FC = () => {
                   
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                      {selectedAssetType === 'Stock' ? (
-                       // Stock criteria: EMA, Weekly MACD, and Burst only
                        <>
                          <div className="flex items-center space-x-2">
                            <Checkbox
@@ -293,7 +266,6 @@ export const TradingDashboard: React.FC = () => {
                          </div>
                        </>
                      ) : (
-                       // Option criteria: all six analyses
                        <>
                          <div className="flex items-center space-x-2">
                            <Checkbox
