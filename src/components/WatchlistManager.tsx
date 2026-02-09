@@ -5,8 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, BarChart3 } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
+import { useWeeklyMatrix } from '@/hooks/useWeeklyMatrix';
+import { WeeklyChartModal } from './WeeklyChartModal';
+import { MatrixRow } from '@/hooks/useWeeklyMatrix';
 
 interface WatchlistManagerProps {
   watchlist: Stock[];
@@ -22,6 +25,24 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
+  const [chartOpen, setChartOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<MatrixRow | null>(null);
+  const { fetchMatrix, matrixData } = useWeeklyMatrix();
+
+  const handleOpenChart = async (ticker: string) => {
+    await fetchMatrix([ticker]);
+  };
+
+  // When matrixData updates after fetch, open the modal
+  React.useEffect(() => {
+    if (matrixData.length > 0 && !chartOpen) {
+      const row = matrixData[0];
+      if (row) {
+        setSelectedRow(row);
+        setChartOpen(true);
+      }
+    }
+  }, [matrixData]);
 
   const handleAdd = () => {
     if (newTicker.trim()) {
@@ -132,6 +153,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="font-semibold text-lg text-primary hover:underline flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {stock.ticker}
                             <ExternalLink className="h-4 w-4" />
@@ -139,6 +161,18 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                         ) : (
                           <h3 className="font-semibold text-lg">{stock.ticker}</h3>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-primary hover:text-primary/80"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenChart(stock.ticker);
+                          }}
+                          title={`Open chart for ${stock.ticker}`}
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
@@ -168,6 +202,15 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Chart Modal */}
+      {selectedRow && (
+        <WeeklyChartModal
+          open={chartOpen}
+          onOpenChange={setChartOpen}
+          row={selectedRow}
+        />
+      )}
     </div>
   );
 };
