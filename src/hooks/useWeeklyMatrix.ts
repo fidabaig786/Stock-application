@@ -2,6 +2,12 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface RRGTrailPoint {
+  rsRatio: number;
+  rsMomentum: number;
+  date: string;
+}
+
 export interface MatrixRow {
   ticker: string;
   currentPrice: number | null;
@@ -10,6 +16,7 @@ export interface MatrixRow {
   emaCrossover: string | null;
   macdSignal: string | null;
   rrgQuadrant: string | null;
+  rrgTrail: RRGTrailPoint[];
   burst: boolean | null;
   weeklyCandles: WeeklyCandle[];
   error?: string;

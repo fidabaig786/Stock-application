@@ -224,13 +224,17 @@ serve(async (req) => {
 
       // RRG
       let rrgQuadrant = 'N/A';
+      let rrgTrail: { rsRatio: number; rsMomentum: number; date: string }[] = [];
       if (ticker === 'SPY') {
         rrgQuadrant = 'Benchmark';
+        // SPY is the benchmark, fixed at (100, 100)
+        rrgTrail = [{ rsRatio: 100, rsMomentum: 100, date: new Date(timestamps[timestamps.length - 1]).toISOString().split('T')[0] }];
       } else {
         // Align lengths
         const minLen = Math.min(closes.length, spyData.closes.length);
         const tickerSlice = closes.slice(-minLen);
         const spySlice = spyData.closes.slice(-minLen);
+        const tickerTimestamps = timestamps.slice(-minLen);
 
         const rsRatio = calcRSRatio(tickerSlice, spySlice, 10);
         const rsMomentum = calcRSMomentum(rsRatio, 10);
@@ -239,6 +243,18 @@ serve(async (req) => {
           rsRatio[rsRatio.length - 1],
           rsMomentum[rsMomentum.length - 1]
         );
+
+        // Build trail of last 12 data points
+        const trailLen = Math.min(12, rsRatio.length);
+        for (let j = rsRatio.length - trailLen; j < rsRatio.length; j++) {
+          if (!isNaN(rsRatio[j]) && !isNaN(rsMomentum[j])) {
+            rrgTrail.push({
+              rsRatio: parseFloat(rsRatio[j].toFixed(4)),
+              rsMomentum: parseFloat(rsMomentum[j].toFixed(4)),
+              date: new Date(tickerTimestamps[j]).toISOString().split('T')[0],
+            });
+          }
+        }
       }
 
       // Burst
@@ -271,6 +287,7 @@ serve(async (req) => {
         emaCrossover,
         macdSignal,
         rrgQuadrant,
+        rrgTrail,
         burst: isBurst,
         weeklyCandles,
       });
