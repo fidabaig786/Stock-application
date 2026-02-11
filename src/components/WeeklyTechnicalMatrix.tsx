@@ -19,12 +19,26 @@ import { CompanyNews } from './CompanyNews';
 import { RRGChart } from './RRGChart';
 
 export const WeeklyTechnicalMatrix: React.FC = () => {
-  const [tickers, setTickers] = useState<string[]>(['SPY']);
+  const [tickers, setTickers] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('weeklyMatrixTickers');
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        return parsed.includes('SPY') ? parsed : ['SPY', ...parsed];
+      }
+    } catch {}
+    return ['SPY'];
+  });
   const [newTicker, setNewTicker] = useState('');
   const [selectedRow, setSelectedRow] = useState<MatrixRow | null>(null);
   const [chartOpen, setChartOpen] = useState(false);
   const [selectedNewsTicker, setSelectedNewsTicker] = useState<string | null>(null);
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
+
+  const persistTickers = (updated: string[]) => {
+    setTickers(updated);
+    localStorage.setItem('weeklyMatrixTickers', JSON.stringify(updated));
+  };
 
   const { matrixData, isLoading, fetchMatrix, news, isLoadingNews, fetchNews } = useWeeklyMatrix();
 
@@ -38,16 +52,16 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     const ticker = newTicker.trim().toUpperCase();
     if (ticker && !tickers.includes(ticker)) {
       const updated = [...tickers, ticker];
-      setTickers(updated);
+      persistTickers(updated);
       fetchMatrix(updated);
       setNewTicker('');
     }
   };
 
   const handleRemoveTicker = (ticker: string) => {
-    if (ticker === 'SPY') return; // SPY cannot be removed
+    if (ticker === 'SPY') return;
     const updated = tickers.filter(t => t !== ticker);
-    setTickers(updated);
+    persistTickers(updated);
     fetchMatrix(updated);
     if (selectedNewsTicker === ticker) setSelectedNewsTicker(null);
   };
@@ -154,6 +168,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         <TableHead className="text-center">RRG Quadrant</TableHead>
                         <TableHead className="text-center">Burst</TableHead>
                         <TableHead className="text-center w-20">Chart</TableHead>
+                        <TableHead className="text-center w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -187,21 +202,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                             {getSignalBadge(row.emaCrossover, 'ema')}
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {getSignalBadge(row.macdSignal, 'macd')}
-                              {index >= 2 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveTicker(row.ticker);
-                                  }}
-                                  className="ml-1 text-destructive hover:text-destructive/80 transition-colors"
-                                  title={`Remove ${row.ticker}`}
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
+                            {getSignalBadge(row.macdSignal, 'macd')}
                           </TableCell>
                           <TableCell className="text-center">
                             {getRRGBadge(row.rrgQuadrant)}
@@ -225,12 +226,26 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                               <BarChart3 className="h-4 w-4" />
                             </Button>
                           </TableCell>
+                          <TableCell className="text-center">
+                            {row.ticker !== 'SPY' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveTicker(row.ticker);
+                                }}
+                                className="text-destructive/60 hover:text-destructive transition-colors"
+                                title={`Remove ${row.ticker}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
 
                       {matrixData.length === 0 && !isLoading && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             Click Refresh to load weekly technical data
                           </TableCell>
                         </TableRow>
