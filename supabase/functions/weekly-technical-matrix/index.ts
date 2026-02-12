@@ -16,6 +16,7 @@ function calcEMA(prices: number[], period: number): number[] {
   return ema;
 }
 
+// Local RSI for chart candles (fallback, since Polygon RSI timestamps may not align with candle timestamps)
 function calcRSI(closes: number[], period = 14): number[] {
   const rsi: number[] = new Array(closes.length).fill(NaN);
   if (closes.length < period + 1) return rsi;
@@ -153,6 +154,28 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
   }
 }
 
+// ─── Polygon RSI Fetch ───
+
+async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values: { value: number; timestamp: number }[] } | null> {
+  const url = `https://api.polygon.io/v1/indicators/rsi/${ticker}?timespan=week&adjusted=true&window=14&series_type=close&order=desc&limit=52&apiKey=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error(`Polygon RSI API error for ${ticker}: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!data?.results?.values || data.results.values.length === 0) {
+      console.error(`No RSI data for ${ticker}`);
+      return null;
+    }
+    return { values: data.results.values };
+  } catch (e) {
+    console.error(`Error fetching RSI for ${ticker}:`, e);
+    return null;
+  }
+}
+
 // ─── Main Handler ───
 
 serve(async (req) => {
@@ -175,11 +198,18 @@ serve(async (req) => {
     // Always include SPY as benchmark
     const allTickers = Array.from(new Set(['SPY', ...tickers.map((t: string) => t.toUpperCase())]));
 
-    // Fetch all weekly data
+    // Fetch all weekly data + RSI from Polygon API in parallel
     const dataMap: Record<string, Awaited<ReturnType<typeof fetchWeeklyData>>> = {};
-    for (const ticker of allTickers) {
-      dataMap[ticker] = await fetchWeeklyData(ticker, apiKey);
-    }
+    const rsiMap: Record<string, Awaited<ReturnType<typeof fetchPolygonRSI>>> = {};
+    
+    await Promise.all(allTickers.map(async (ticker) => {
+      const [weeklyData, rsiData] = await Promise.all([
+        fetchWeeklyData(ticker, apiKey),
+        fetchPolygonRSI(ticker, apiKey),
+      ]);
+      dataMap[ticker] = weeklyData;
+      rsiMap[ticker] = rsiData;
+    }));
 
     const spyData = dataMap['SPY'];
     if (!spyData) {
@@ -208,10 +238,13 @@ serve(async (req) => {
 
       const { closes, highs, lows, opens, timestamps } = data;
 
-      // RSI(14)
-      const rsiArr = calcRSI(closes, 14);
-      const rsiValue = rsiArr[rsiArr.length - 1];
+      // RSI(14) from Polygon API (for table display - authoritative value)
+      const polygonRsi = rsiMap[ticker];
+      const rsiValue = polygonRsi?.values?.[0]?.value ?? NaN;
       const rsiLabel = isNaN(rsiValue) ? 'N/A' : rsiValue > 70 ? 'Overbought' : rsiValue < 30 ? 'Oversold' : 'Neutral';
+      
+      // Local RSI calculation for chart candles
+      const rsiArr = calcRSI(closes, 14);
 
       // EMA 8 × EMA 21 crossover
       const ema8 = calcEMA(closes, 8);
