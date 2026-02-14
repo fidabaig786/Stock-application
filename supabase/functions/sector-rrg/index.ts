@@ -1,4 +1,3 @@
-// Sector RRG edge function — z-score based RS-Ratio & RS-Momentum (v2)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -16,24 +15,20 @@ const MOM_ZSCALE = 10;
 
 interface Bar { t: number; c: number }
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
 async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ dates: number[]; closes: number[] } | null> {
   const start = "2023-01-01";
   const end = new Date().toISOString().split("T")[0];
   const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${start}/${end}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
     if (!res.ok) {
       const text = await res.text();
       console.error(`${ticker} HTTP ${res.status}: ${text.substring(0, 200)}`);
-      return null;
-    }
-    const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
-      const text = await res.text();
-      console.error(`${ticker} non-JSON response: ${text.substring(0, 200)}`);
       return null;
     }
     const data = await res.json();
@@ -94,24 +89,16 @@ serve(async (req) => {
     const apiKey = Deno.env.get("POLYGON_API_KEY");
     if (!apiKey) throw new Error("POLYGON_API_KEY not configured");
 
-    console.log(`[sector-rrg v2] Starting fetch at ${new Date().toISOString()}`);
+    console.log(`[sector-rrg] Starting parallel fetch at ${new Date().toISOString()}`);
 
-    // Fetch tickers in batches of 4 with small delays to avoid rate limiting
+    // Fetch ALL tickers in parallel — no batching, no delays
     const allTickers = [BENCHMARK, ...SECTORS];
+    const fetchResults = await Promise.all(allTickers.map(t => fetchWeeklyCloses(t, apiKey)));
+    
     const closesMap: Record<string, { dates: number[]; closes: number[] }> = {};
-    const BATCH_SIZE = 4;
-
-    for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
-      const batch = allTickers.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map(t => fetchWeeklyCloses(t, apiKey)));
-      batch.forEach((t, idx) => {
-        if (results[idx]) closesMap[t] = results[idx]!;
-      });
-      // Small delay between batches to avoid rate limiting
-      if (i + BATCH_SIZE < allTickers.length) {
-        await sleep(250);
-      }
-    }
+    allTickers.forEach((t, i) => {
+      if (fetchResults[i]) closesMap[t] = fetchResults[i]!;
+    });
 
     if (!closesMap[BENCHMARK]) throw new Error("Failed to fetch SPY data");
 
@@ -137,6 +124,13 @@ serve(async (req) => {
     const benchCloses = buildAligned(BENCHMARK);
     const latestDate = new Date(commonDates[commonDates.length - 1]).toISOString().split("T")[0];
     console.log(`[sector-rrg] ${commonDates.length} aligned weeks, latest: ${latestDate}`);
+
+    // Check for stale data
+    const latestYear = new Date(commonDates[commonDates.length - 1]).getFullYear();
+    const currentYear = new Date().getFullYear();
+    if (latestYear < currentYear) {
+      console.warn(`[sector-rrg] WARNING: Latest data is from ${latestYear}, current year is ${currentYear}`);
+    }
 
     const results: Array<{
       ticker: string;
