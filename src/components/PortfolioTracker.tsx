@@ -670,7 +670,18 @@ export const PortfolioTracker: React.FC = () => {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">{position.shares} shares</p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-sm text-muted-foreground">{position.shares} shares</p>
+                              {metadata[position.ticker]?.earningsDates ? (
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  📅 Earnings: {metadata[position.ticker].earningsDates!.join(' – ')}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  📅 Earnings: N/A
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(position)}>
