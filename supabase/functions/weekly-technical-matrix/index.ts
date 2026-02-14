@@ -1,10 +1,37 @@
-// v3 - Force redeploy 2026-02-14T17:10 - limit=50000, timestamp alignment, debug logging
+// v4 - Unified with stock-analysis: retry logic, consistent API calls
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ─── Retry utility (matches stock-analysis) ───
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+async function fetchWithRetry(url: string, retries = 3, backoffMs = 300): Promise<Response> {
+  let attempt = 0;
+  let lastErr: any;
+  while (attempt <= retries) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+      if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt === retries) throw err;
+      const wait = backoffMs * Math.pow(2, attempt) + Math.floor(Math.random() * 100);
+      console.log(`Retrying fetch (${attempt + 1}/${retries}): ${err}`);
+      await sleep(wait);
+      attempt++;
+    }
+  }
+  throw lastErr;
+}
 
 // ─── Indicator Helpers ───
 
@@ -76,7 +103,7 @@ function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: numb
 async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apikey=${apiKey}`;
   try {
-    const res = await fetch(url);
+    const res = await fetchWithRetry(url);
     if (!res.ok) {
       console.error(`Polygon MACD API error for ${ticker}: ${res.status}`);
       return { crossover: 'N/A' };
@@ -145,11 +172,11 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
   const fromStr = from.toISOString().split('T')[0];
   const toStr = to.toISOString().split('T')[0];
 
-  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=50000&apikey=${apiKey}`;
 
   try {
     console.log(`Fetching weekly data for ${ticker}: ${fromStr} to ${toStr}`);
-    const res = await fetch(url);
+    const res = await fetchWithRetry(url);
     if (!res.ok) {
       const body = await res.text();
       console.error(`Polygon API error for ${ticker}: ${res.status} - ${body}`);
@@ -180,9 +207,9 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
 // ─── Polygon RSI Fetch ───
 
 async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values: { value: number; timestamp: number }[] } | null> {
-  const url = `https://api.polygon.io/v1/indicators/rsi/${ticker}?timespan=week&adjusted=true&window=14&series_type=close&order=desc&limit=52&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v1/indicators/rsi/${ticker}?timespan=week&adjusted=true&window=14&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
   try {
-    const res = await fetch(url);
+    const res = await fetchWithRetry(url);
     if (!res.ok) {
       console.error(`Polygon RSI API error for ${ticker}: ${res.status}`);
       return null;
@@ -210,7 +237,7 @@ async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): 
 
   const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endStr}&timespan=week&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
   try {
-    const res = await fetch(url);
+    const res = await fetchWithRetry(url);
     if (!res.ok) {
       console.error(`Polygon EMA(${window}) API error for ${ticker}: ${res.status}`);
       return null;
@@ -256,14 +283,14 @@ serve(async (req) => {
     // Always include SPY as benchmark
     const allTickers = Array.from(new Set(['SPY', ...tickers.map((t: string) => t.toUpperCase())]));
 
-    // Fetch all weekly data + RSI + EMA + MACD from Polygon API in parallel
+    // Process tickers sequentially to avoid Polygon rate limits (matches stock-analysis approach)
     const dataMap: Record<string, Awaited<ReturnType<typeof fetchWeeklyData>>> = {};
     const rsiMap: Record<string, Awaited<ReturnType<typeof fetchPolygonRSI>>> = {};
     const ema8Map: Record<string, number | null> = {};
     const ema21Map: Record<string, number | null> = {};
     const macdMap: Record<string, { crossover: string }> = {};
     
-    await Promise.all(allTickers.map(async (ticker) => {
+    for (const ticker of allTickers) {
       const [weeklyData, rsiData, ema8Val, ema21Val, macdData] = await Promise.all([
         fetchWeeklyData(ticker, apiKey),
         fetchPolygonRSI(ticker, apiKey),
@@ -276,7 +303,9 @@ serve(async (req) => {
       ema8Map[ticker] = ema8Val;
       ema21Map[ticker] = ema21Val;
       macdMap[ticker] = macdData;
-    }));
+      // Small delay between tickers to respect rate limits
+      await sleep(200);
+    }
 
     const spyData = dataMap['SPY'];
     if (!spyData) {
