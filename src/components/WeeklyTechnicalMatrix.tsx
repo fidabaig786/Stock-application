@@ -173,7 +173,6 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         <TableHead className="text-center">MACD</TableHead>
                         <TableHead className="text-center">RRG Quadrant</TableHead>
                         <TableHead className="text-center">Sector</TableHead>
-                        <TableHead className="text-center">Earnings</TableHead>
                         <TableHead className="text-center w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -229,13 +228,6 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                               );
                             })()}
                           </TableCell>
-                          <TableCell className="text-center text-xs font-mono">
-                            {(() => {
-                              const meta = metadata[row.ticker];
-                              if (!meta?.earningsDates) return <span className="text-muted-foreground">N/A</span>;
-                              return meta.earningsDates.join(' – ');
-                            })()}
-                          </TableCell>
                           <TableCell className="text-center">
                             {row.ticker !== 'SPY' && (
                               <button
@@ -255,7 +247,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
 
                       {matrixData.length === 0 && !isLoading && (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             Click Refresh to load weekly technical data
                           </TableCell>
                         </TableRow>

@@ -63,37 +63,28 @@ async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null
 async function fetchYahooMetadata(
   ticker: string,
   auth: { crumb: string; cookie: string } | null
-): Promise<{ sector: string | null; earningsDates: string[] }> {
-  if (!auth) return { sector: null, earningsDates: [] };
+): Promise<{ sector: string | null }> {
+  if (!auth) return { sector: null };
 
   try {
-    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,calendarEvents&crumb=${encodeURIComponent(auth.crumb)}`;
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile&crumb=${encodeURIComponent(auth.crumb)}`;
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, 'Cookie': auth.cookie },
     });
 
     if (!res.ok) {
       console.error(`Yahoo error for ${ticker}: ${res.status}`);
-      return { sector: null, earningsDates: [] };
+      return { sector: null };
     }
 
     const data = await res.json();
     const result = data?.quoteSummary?.result?.[0];
 
     const sector = result?.assetProfile?.sector || null;
-
-    // Extract earnings dates (mirrors yfinance's stock.calendar['Earnings Date'])
-    const earningsRaw = result?.calendarEvents?.earnings?.earningsDate || [];
-    const earningsDates = earningsRaw.map((d: any) => {
-      if (d?.fmt) return d.fmt;
-      if (d?.raw) return new Date(d.raw * 1000).toISOString().split('T')[0];
-      return null;
-    }).filter(Boolean) as string[];
-
-    return { sector, earningsDates };
+    return { sector };
   } catch (e) {
     console.error(`Error fetching metadata for ${ticker}:`, e);
-    return { sector: null, earningsDates: [] };
+    return { sector: null };
   }
 }
 
@@ -238,7 +229,6 @@ serve(async (req) => {
         sectorETF,
         sectorQuadrant,
         sectorColor,
-        earningsDates: r.earningsDates.length > 0 ? r.earningsDates : null,
       };
     });
 
