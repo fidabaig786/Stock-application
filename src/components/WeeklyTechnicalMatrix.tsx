@@ -173,7 +173,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         <TableHead className="text-center">MACD</TableHead>
                         <TableHead className="text-center">RRG Quadrant</TableHead>
                         <TableHead className="text-center">Sector</TableHead>
-                        <TableHead className="text-center w-12"></TableHead>
+                        <TableHead className="text-center">Earnings</TableHead>
                         <TableHead className="text-center w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -227,6 +227,13 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                                   <span className="text-xs text-muted-foreground">{meta.sectorETF}</span>
                                 </div>
                               );
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-center text-xs font-mono">
+                            {(() => {
+                              const meta = metadata[row.ticker];
+                              if (!meta?.earningsDates) return <span className="text-muted-foreground">N/A</span>;
+                              return meta.earningsDates.join(' – ');
                             })()}
                           </TableCell>
                           <TableCell className="text-center">
