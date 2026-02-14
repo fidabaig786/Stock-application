@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RefreshCw, Trash2, Edit2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit2, ExternalLink, AlertTriangle, Circle } from 'lucide-react';
 import { usePortfolio, PortfolioPosition } from '@/hooks/usePortfolio';
 import { useAuth } from '@/hooks/useAuth';
+import { useStockMetadata } from '@/hooks/useStockMetadata';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 export const PortfolioTracker: React.FC = () => {
   const { user } = useAuth();
   const { positions, isLoading, addPosition, removePosition, fetchCurrentPrices, updatePosition } = usePortfolio(user?.id);
+  const { metadata, fetchMetadata } = useStockMetadata();
   const { toast } = useToast();
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -39,6 +41,8 @@ export const PortfolioTracker: React.FC = () => {
   useEffect(() => {
     if (positions.length > 0) {
       fetchCurrentPrices();
+      const tickers = Array.from(new Set(positions.map(p => p.ticker)));
+      fetchMetadata(tickers);
     }
   }, [positions.length]);
 
@@ -628,6 +632,16 @@ export const PortfolioTracker: React.FC = () => {
                         <div className="col-span-2 md:col-span-4 flex justify-between items-start mb-2">
                           <div>
                             <div className="flex items-center gap-2">
+                              {/* Sector RRG color indicator */}
+                              {metadata[position.ticker]?.sectorColor && (
+                                <span title={`Sector: ${metadata[position.ticker].sectorETF} (${metadata[position.ticker].sectorQuadrant})`}>
+                                  <Circle
+                                    className={`h-3.5 w-3.5 fill-current ${
+                                      metadata[position.ticker].sectorColor === 'green' ? 'text-success' : 'text-destructive'
+                                    }`}
+                                  />
+                                </span>
+                              )}
                               <button 
                                 onClick={() => handleTickerClick(position.ticker)}
                                 className="text-xl font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1 group"
@@ -656,7 +670,18 @@ export const PortfolioTracker: React.FC = () => {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">{position.shares} shares</p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-sm text-muted-foreground">{position.shares} shares</p>
+                              {metadata[position.ticker]?.earningsDates ? (
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  📅 Earnings: {metadata[position.ticker].earningsDates!.join(' – ')}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  📅 Earnings: N/A
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(position)}>
@@ -771,6 +796,16 @@ export const PortfolioTracker: React.FC = () => {
                         <div className="col-span-2 md:col-span-4 flex justify-between items-start mb-2">
                           <div>
                             <div className="flex items-center gap-2">
+                              {/* Sector RRG color indicator */}
+                              {metadata[position.ticker]?.sectorColor && (
+                                <span title={`Sector: ${metadata[position.ticker].sectorETF} (${metadata[position.ticker].sectorQuadrant})`}>
+                                  <Circle
+                                    className={`h-3.5 w-3.5 fill-current ${
+                                      metadata[position.ticker].sectorColor === 'green' ? 'text-success' : 'text-destructive'
+                                    }`}
+                                  />
+                                </span>
+                              )}
                               <button 
                                 onClick={() => handleTickerClick(position.ticker)}
                                 className="text-xl font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1 group"

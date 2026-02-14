@@ -12,8 +12,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, RefreshCw, X, BarChart3, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, X, BarChart3, Loader2, Circle } from 'lucide-react';
 import { useWeeklyMatrix, MatrixRow } from '@/hooks/useWeeklyMatrix';
+import { useStockMetadata } from '@/hooks/useStockMetadata';
 import { WeeklyChartModal } from './WeeklyChartModal';
 import { CompanyNews } from './CompanyNews';
 import { RRGChart } from './RRGChart';
@@ -41,10 +42,12 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
   };
 
   const { matrixData, isLoading, fetchMatrix, news, isLoadingNews, fetchNews } = useWeeklyMatrix();
+  const { metadata, fetchMetadata } = useStockMetadata();
 
   useEffect(() => {
     if (tickers.length > 0) {
       fetchMatrix(tickers);
+      fetchMetadata(tickers);
     }
   }, []);
 
@@ -54,6 +57,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
       const updated = [...tickers, ticker];
       persistTickers(updated);
       fetchMatrix(updated);
+      fetchMetadata(updated);
       setNewTicker('');
     }
   };
@@ -63,11 +67,13 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     const updated = tickers.filter(t => t !== ticker);
     persistTickers(updated);
     fetchMatrix(updated);
+    fetchMetadata(updated);
     if (selectedNewsTicker === ticker) setSelectedNewsTicker(null);
   };
 
   const handleRefresh = () => {
     fetchMatrix(tickers);
+    fetchMetadata(tickers);
   };
 
   const handleRowClick = (row: MatrixRow) => {
@@ -158,7 +164,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-20">Ticker</TableHead>
                         <TableHead className="text-right">Price</TableHead>
@@ -166,8 +172,8 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         <TableHead className="text-center">EMA 8×21</TableHead>
                         <TableHead className="text-center">MACD</TableHead>
                         <TableHead className="text-center">RRG Quadrant</TableHead>
-                        {/* Chart column commented out for now */}
-                        {/* <TableHead className="text-center w-20">Chart</TableHead> */}
+                        <TableHead className="text-center">Sector</TableHead>
+                        <TableHead className="text-center">Earnings</TableHead>
                         <TableHead className="text-center w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -207,19 +213,29 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                           <TableCell className="text-center">
                             {getRRGBadge(row.rrgQuadrant)}
                           </TableCell>
-                          {/* Chart button commented out for now */}
-                          {/* <TableCell className="text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRowClick(row);
-                              }}
-                            >
-                              <BarChart3 className="h-4 w-4" />
-                            </Button>
-                          </TableCell> */}
+                          <TableCell className="text-center">
+                            {(() => {
+                              const meta = metadata[row.ticker];
+                              if (!meta?.sectorColor) return <span className="text-muted-foreground text-xs">—</span>;
+                              return (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <Circle
+                                    className={`h-3 w-3 fill-current ${
+                                      meta.sectorColor === 'green' ? 'text-success' : 'text-destructive'
+                                    }`}
+                                  />
+                                  <span className="text-xs text-muted-foreground">{meta.sectorETF}</span>
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-center text-xs font-mono">
+                            {(() => {
+                              const meta = metadata[row.ticker];
+                              if (!meta?.earningsDates) return 'N/A';
+                              return meta.earningsDates.join(' – ');
+                            })()}
+                          </TableCell>
                           <TableCell className="text-center">
                             {row.ticker !== 'SPY' && (
                               <button
@@ -239,7 +255,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
 
                       {matrixData.length === 0 && !isLoading && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             Click Refresh to load weekly technical data
                           </TableCell>
                         </TableRow>
