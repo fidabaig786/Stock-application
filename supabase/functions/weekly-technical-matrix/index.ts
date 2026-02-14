@@ -49,7 +49,7 @@ function calcRSI(closes: number[], period = 14): number[] {
   return rsi;
 }
 
-// Stock MACD logic: local EWM with span fast=5, slow=13, signal=5 (for chart candles)
+// Unified MACD logic: EWM with span fast=19, slow=39, signal=9 (matches Polygon API params)
 function calcPandasEWM(data: number[], span: number): number[] {
   if (data.length === 0) return [];
   const alpha = 2 / (span + 1);
@@ -60,16 +60,16 @@ function calcPandasEWM(data: number[], span: number): number[] {
   return result;
 }
 
-function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
-  const emaFast = calcPandasEWM(closes, 5);
-  const emaSlow = calcPandasEWM(closes, 13);
+function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
+  const emaFast = calcPandasEWM(closes, 19);
+  const emaSlow = calcPandasEWM(closes, 39);
   const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalLine = calcPandasEWM(macdLine, 5);
+  const signalLine = calcPandasEWM(macdLine, 9);
   const histogram = macdLine.map((v, i) => v - signalLine[i]);
   return { macdLine, signalLine, histogram };
 }
 
-// ─── Polygon MACD Fetch (stock logic: 5/13/5, same as analysis page) ───
+// ─── Polygon MACD Fetch (unified: 19/39/9 weekly close) ───
 
 async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apiKey=${apiKey}`;
@@ -297,10 +297,10 @@ serve(async (req) => {
       const ema8 = calcEMA(closes, 8);
       const ema21 = calcEMA(closes, 21);
 
-      // MACD from Polygon API (stock logic: fast=5, slow=13, signal=5 with crossover detection)
+      // MACD from Polygon API (unified: 19/39/9 weekly close)
       const macdSignal = macdMap[ticker]?.crossover ?? 'N/A';
-      // Local MACD for chart candles only
-      const { macdLine, signalLine, histogram } = calcStockMACD(closes);
+      // Local MACD for chart candles (same 19/39/9 params)
+      const { macdLine, signalLine, histogram } = calcLocalMACD(closes);
 
       // RRG
       let rrgQuadrant = 'N/A';
