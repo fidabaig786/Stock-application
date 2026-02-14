@@ -72,8 +72,9 @@ function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: numb
 
 // ─── Polygon MACD Fetch (unified: 19/39/9 weekly close) ───
 
+// Unified MACD: identical to stock-analysis calculateWeeklyMACD
 async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
-  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apikey=${apiKey}`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -81,13 +82,21 @@ async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ cross
       return { crossover: 'N/A' };
     }
     const data = await res.json();
-    if (!data?.results?.values || data.results.values.length < 1) {
+
+    if (data.status !== "OK" && data.status !== "DELAYED") {
+      console.error(`Polygon MACD status error for ${ticker}: ${data.status}`);
+      return { crossover: 'N/A' };
+    }
+
+    if (!data.results?.values || data.results.values.length < 1) {
       console.error(`No MACD data for ${ticker}`);
       return { crossover: 'N/A' };
     }
 
-    const latest = data.results.values[0]; // newest first
-    return { crossover: latest.value >= latest.signal ? 'Bullish' : 'Bearish' };
+    const latest = data.results.values[0];
+    const isBullish = latest.value >= latest.signal;
+    console.log(`${ticker} - MACD: ${isBullish ? 'Bullish' : 'Bearish'} (MACD: ${latest.value.toFixed(6)}, Signal: ${latest.signal.toFixed(6)})`);
+    return { crossover: isBullish ? 'Bullish' : 'Bearish' };
   } catch (e) {
     console.error(`Error fetching MACD for ${ticker}:`, e);
     return { crossover: 'N/A' };
@@ -192,8 +201,14 @@ async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values
 
 // ─── Polygon EMA Fetch (Stock EMA logic - same as analysis page) ───
 
+// Unified EMA: identical to stock-analysis calculateEMACrossover URL format
 async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): Promise<number | null> {
-  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timespan=week&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apiKey=${apiKey}`;
+  const endDate = new Date();
+  if (endDate.getDay() === 0) endDate.setDate(endDate.getDate() - 2);
+  if (endDate.getDay() === 6) endDate.setDate(endDate.getDate() - 1);
+  const endStr = endDate.toISOString().split('T')[0];
+
+  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endStr}&timespan=week&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -201,11 +216,17 @@ async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): 
       return null;
     }
     const data = await res.json();
-    if (!data?.results?.values?.length) {
+    if (data.status !== "OK" && data.status !== "DELAYED") {
+      console.error(`Polygon EMA(${window}) status error for ${ticker}: ${data.status}`);
+      return null;
+    }
+    if (!data.results?.values?.length) {
       console.error(`No EMA(${window}) data for ${ticker}`);
       return null;
     }
-    return data.results.values[0].value;
+    const val = data.results.values[0].value;
+    console.log(`${ticker} - EMA(${window}): ${val.toFixed(4)}`);
+    return val;
   } catch (e) {
     console.error(`Error fetching EMA(${window}) for ${ticker}:`, e);
     return null;
