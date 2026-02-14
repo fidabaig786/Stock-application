@@ -11,13 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, RefreshCw, X, BarChart3, Loader2, Circle } from 'lucide-react';
 import { useWeeklyMatrix, MatrixRow } from '@/hooks/useWeeklyMatrix';
 import { useStockMetadata } from '@/hooks/useStockMetadata';
 import { WeeklyChartModal } from './WeeklyChartModal';
 import { CompanyNews } from './CompanyNews';
-import { RRGChart } from './RRGChart';
 
 export const WeeklyTechnicalMatrix: React.FC = () => {
   const [tickers, setTickers] = useState<string[]>(() => {
@@ -84,14 +82,6 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     fetchNews(row.ticker);
   };
 
-  const handleRRGTickerClick = (ticker: string) => {
-    setHighlightedTicker(prev => prev === ticker ? null : ticker);
-    const row = matrixData.find(r => r.ticker === ticker);
-    if (row) {
-      setSelectedNewsTicker(ticker);
-      fetchNews(ticker);
-    }
-  };
 
   const getRsiColor = (rsi: number | null, label: string | null) => {
     if (rsi === null) return 'text-muted-foreground';
@@ -149,134 +139,106 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="table" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="table">Table View</TabsTrigger>
-              <TabsTrigger value="rrg">RRG View</TabsTrigger>
-            </TabsList>
+          {isLoading && matrixData.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading weekly data...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Ticker</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-center">RSI (14)</TableHead>
+                    <TableHead className="text-center">EMA 8×21</TableHead>
+                    <TableHead className="text-center">MACD</TableHead>
+                    <TableHead className="text-center">RRG Quadrant</TableHead>
+                    <TableHead className="text-center">Sector</TableHead>
+                    <TableHead className="text-center w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {matrixData.map((row) => (
+                    <TableRow
+                      key={row.ticker}
+                      className={`cursor-pointer transition-colors ${
+                        highlightedTicker === row.ticker
+                          ? 'bg-primary/10 hover:bg-primary/15'
+                          : 'hover:bg-muted/70'
+                      }`}
+                      onClick={() => handleRowClick(row)}
+                    >
+                      <TableCell className="font-bold text-primary">
+                        {row.ticker}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {row.currentPrice != null ? `$${row.currentPrice.toFixed(2)}` : '—'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.rsi != null ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`font-mono font-semibold ${getRsiColor(row.rsi, row.rsiLabel)}`}>
+                              {row.rsi.toFixed(1)}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{row.rsiLabel}</span>
+                          </div>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getSignalBadge(row.emaCrossover, 'ema')}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getSignalBadge(row.macdSignal, 'macd')}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getRRGBadge(row.rrgQuadrant)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const meta = metadata[row.ticker];
+                          if (!meta?.sectorColor) return <span className="text-muted-foreground text-xs">—</span>;
+                          return (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Circle
+                                className={`h-3 w-3 fill-current ${
+                                  meta.sectorColor === 'green' ? 'text-success' : 'text-destructive'
+                                }`}
+                              />
+                              <span className="text-xs text-muted-foreground">{meta.sectorETF}</span>
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.ticker !== 'SPY' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveTicker(row.ticker);
+                            }}
+                            className="text-destructive/60 hover:text-destructive transition-colors"
+                            title={`Remove ${row.ticker}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
 
-            <TabsContent value="table">
-              {isLoading && matrixData.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-3 text-muted-foreground">Loading weekly data...</span>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-20">Ticker</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
-                        <TableHead className="text-center">RSI (14)</TableHead>
-                        <TableHead className="text-center">EMA 8×21</TableHead>
-                        <TableHead className="text-center">MACD</TableHead>
-                        <TableHead className="text-center">RRG Quadrant</TableHead>
-                        <TableHead className="text-center">Sector</TableHead>
-                        <TableHead className="text-center w-12"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {matrixData.map((row, index) => (
-                        <TableRow
-                          key={row.ticker}
-                          className={`cursor-pointer transition-colors ${
-                            highlightedTicker === row.ticker
-                              ? 'bg-primary/10 hover:bg-primary/15'
-                              : 'hover:bg-muted/70'
-                          }`}
-                          onClick={() => handleRowClick(row)}
-                        >
-                          <TableCell className="font-bold text-primary">
-                            {row.ticker}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {row.currentPrice != null ? `$${row.currentPrice.toFixed(2)}` : '—'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {row.rsi != null ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className={`font-mono font-semibold ${getRsiColor(row.rsi, row.rsiLabel)}`}>
-                                  {row.rsi.toFixed(1)}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">{row.rsiLabel}</span>
-                              </div>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {getSignalBadge(row.emaCrossover, 'ema')}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {getSignalBadge(row.macdSignal, 'macd')}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {getRRGBadge(row.rrgQuadrant)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {(() => {
-                              const meta = metadata[row.ticker];
-                              if (!meta?.sectorColor) return <span className="text-muted-foreground text-xs">—</span>;
-                              return (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <Circle
-                                    className={`h-3 w-3 fill-current ${
-                                      meta.sectorColor === 'green' ? 'text-success' : 'text-destructive'
-                                    }`}
-                                  />
-                                  <span className="text-xs text-muted-foreground">{meta.sectorETF}</span>
-                                </div>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {row.ticker !== 'SPY' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveTicker(row.ticker);
-                                }}
-                                className="text-destructive/60 hover:text-destructive transition-colors"
-                                title={`Remove ${row.ticker}`}
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-
-                      {matrixData.length === 0 && !isLoading && (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                            Click Refresh to load weekly technical data
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="rrg">
-              {isLoading && matrixData.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-3 text-muted-foreground">Loading RRG data...</span>
-                </div>
-              ) : matrixData.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Click Refresh to load weekly technical data
-                </div>
-              ) : (
-                <RRGChart
-                  data={matrixData}
-                  highlightedTicker={highlightedTicker}
-                  onTickerClick={handleRRGTickerClick}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
+                  {matrixData.length === 0 && !isLoading && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        Click Refresh to load weekly technical data
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
