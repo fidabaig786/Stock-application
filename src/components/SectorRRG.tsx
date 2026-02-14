@@ -5,7 +5,7 @@ import { Loader2, RefreshCw, PieChart } from 'lucide-react';
 import { useWeeklyMatrix } from '@/hooks/useWeeklyMatrix';
 import { RRGChart } from './RRGChart';
 
-const SECTOR_TICKERS = ['XLK', 'XLF', 'XLV', 'XLE', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'];
+const SECTOR_TICKERS = ['XLK', 'XLF', 'XLV', 'XLE', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB', 'XLC', 'XLRE'];
 
 export const SectorRRG: React.FC = () => {
   const { matrixData, isLoading, fetchMatrix } = useWeeklyMatrix();

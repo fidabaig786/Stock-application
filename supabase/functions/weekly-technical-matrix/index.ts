@@ -135,7 +135,7 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
   const fromStr = from.toISOString().split('T')[0];
   const toStr = to.toISOString().split('T')[0];
 
-  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=200&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   try {
     const res = await fetch(url);
@@ -302,34 +302,49 @@ serve(async (req) => {
       // Local MACD for chart candles (same 19/39/9 params)
       const { macdLine, signalLine, histogram } = calcLocalMACD(closes);
 
-      // RRG
+      // RRG – align by timestamp to avoid mismatched weeks
       let rrgQuadrant = 'N/A';
       let rrgTrail: { rsRatio: number; rsMomentum: number; date: string }[] = [];
       if (ticker === 'SPY') {
         rrgQuadrant = 'Benchmark';
         rrgTrail = [{ rsRatio: 100, rsMomentum: 100, date: new Date(timestamps[timestamps.length - 1]).toISOString().split('T')[0] }];
       } else {
-        const minLen = Math.min(closes.length, spyData.closes.length);
-        const tickerSlice = closes.slice(-minLen);
-        const spySlice = spyData.closes.slice(-minLen);
-        const tickerTimestamps = timestamps.slice(-minLen);
+        // Build a set of timestamps present in both series
+        const spyTsSet = new Set(spyData.timestamps);
+        const alignedTickerCloses: number[] = [];
+        const alignedSpyCloses: number[] = [];
+        const alignedTimestamps: number[] = [];
 
-        const rsRatio = calcRSRatio(tickerSlice, spySlice, 10);
-        const rsMomentum = calcRSMomentum(rsRatio, 10);
+        const spyTsMap = new Map<number, number>();
+        spyData.timestamps.forEach((ts, idx) => spyTsMap.set(ts, idx));
 
-        rrgQuadrant = getRRGQuadrant(
-          rsRatio[rsRatio.length - 1],
-          rsMomentum[rsMomentum.length - 1]
-        );
+        timestamps.forEach((ts, idx) => {
+          const spyIdx = spyTsMap.get(ts);
+          if (spyIdx !== undefined) {
+            alignedTickerCloses.push(closes[idx]);
+            alignedSpyCloses.push(spyData.closes[spyIdx]);
+            alignedTimestamps.push(ts);
+          }
+        });
 
-        const trailLen = Math.min(12, rsRatio.length);
-        for (let j = rsRatio.length - trailLen; j < rsRatio.length; j++) {
-          if (!isNaN(rsRatio[j]) && !isNaN(rsMomentum[j])) {
-            rrgTrail.push({
-              rsRatio: parseFloat(rsRatio[j].toFixed(4)),
-              rsMomentum: parseFloat(rsMomentum[j].toFixed(4)),
-              date: new Date(tickerTimestamps[j]).toISOString().split('T')[0],
-            });
+        if (alignedTickerCloses.length >= 30) {
+          const rsRatio = calcRSRatio(alignedTickerCloses, alignedSpyCloses, 10);
+          const rsMomentum = calcRSMomentum(rsRatio, 10);
+
+          rrgQuadrant = getRRGQuadrant(
+            rsRatio[rsRatio.length - 1],
+            rsMomentum[rsMomentum.length - 1]
+          );
+
+          const trailLen = Math.min(12, rsRatio.length);
+          for (let j = rsRatio.length - trailLen; j < rsRatio.length; j++) {
+            if (!isNaN(rsRatio[j]) && !isNaN(rsMomentum[j])) {
+              rrgTrail.push({
+                rsRatio: parseFloat(rsRatio[j].toFixed(4)),
+                rsMomentum: parseFloat(rsMomentum[j].toFixed(4)),
+                date: new Date(alignedTimestamps[j]).toISOString().split('T')[0],
+              });
+            }
           }
         }
       }
