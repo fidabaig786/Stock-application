@@ -89,6 +89,8 @@ export type Database = {
           id: string
           index_buy_price: number
           index_ticker: string
+          maturity_date: string | null
+          position_type: string
           shares: number
           stop_loss_price: number | null
           ticker: string
@@ -104,6 +106,8 @@ export type Database = {
           id?: string
           index_buy_price: number
           index_ticker?: string
+          maturity_date?: string | null
+          position_type?: string
           shares: number
           stop_loss_price?: number | null
           ticker: string
@@ -119,6 +123,8 @@ export type Database = {
           id?: string
           index_buy_price?: number
           index_ticker?: string
+          maturity_date?: string | null
+          position_type?: string
           shares?: number
           stop_loss_price?: number | null
           ticker?: string

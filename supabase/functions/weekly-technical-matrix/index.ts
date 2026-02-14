@@ -49,29 +49,51 @@ function calcRSI(closes: number[], period = 14): number[] {
   return rsi;
 }
 
-function calcMACD(closes: number[]) {
-  const ema12 = calcEMA(closes, 12);
-  const ema26 = calcEMA(closes, 26);
-  const macdLine = ema12.map((v, i) => v - ema26[i]);
-  const signalLine = calcEMA(macdLine, 9);
+// Stock MACD logic: EWM with span fast=5, slow=13, signal=5 (same as analysis page)
+function calcPandasEWM(data: number[], span: number): number[] {
+  if (data.length === 0) return [];
+  const alpha = 2 / (span + 1);
+  const result = [data[0]];
+  for (let i = 1; i < data.length; i++) {
+    result.push(alpha * data[i] + (1 - alpha) * result[i - 1]);
+  }
+  return result;
+}
+
+function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[]; crossover: string } {
+  const emaFast = calcPandasEWM(closes, 5);
+  const emaSlow = calcPandasEWM(closes, 13);
+  const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
+  const signalLine = calcPandasEWM(macdLine, 5);
   const histogram = macdLine.map((v, i) => v - signalLine[i]);
-  return { macdLine, signalLine, histogram };
+
+  // Crossover detection (same as stock-analysis)
+  const macdAbove = macdLine.map((v, i) => v > signalLine[i]);
+  let latestCrossoverIndex = -1;
+  for (let i = 1; i < macdAbove.length; i++) {
+    if (macdAbove[i] !== macdAbove[i - 1]) {
+      latestCrossoverIndex = i;
+    }
+  }
+
+  let crossover = 'N/A';
+  if (latestCrossoverIndex !== -1) {
+    crossover = macdLine[latestCrossoverIndex] > signalLine[latestCrossoverIndex] ? 'Bullish' : 'Bearish';
+  }
+
+  return { macdLine, signalLine, histogram, crossover };
 }
 
 // ─── RRG Helpers ───
 
 function calcRSRatio(tickerCloses: number[], benchmarkCloses: number[], period = 10): number[] {
-  // Relative strength = ticker / benchmark * 100
   const rs = tickerCloses.map((v, i) => (v / benchmarkCloses[i]) * 100);
-  // RS-Ratio is the EMA of the relative strength, normalized around 100
   const rsRatio = calcEMA(rs, period);
-  // Normalize around 100: scale so mean ~ 100
   const mean = rsRatio.reduce((a, b) => a + b, 0) / rsRatio.length;
   return rsRatio.map(v => (v / mean) * 100);
 }
 
 function calcRSMomentum(rsRatio: number[], period = 10): number[] {
-  // RS-Momentum = rate of change of RS-Ratio, normalized around 100
   const momentum: number[] = new Array(rsRatio.length).fill(100);
   for (let i = period; i < rsRatio.length; i++) {
     if (rsRatio[i - period] !== 0) {
@@ -88,29 +110,6 @@ function getRRGQuadrant(rsRatio: number, rsMomentum: number): string {
   return 'Improving';
 }
 
-// ─── Burst Logic ───
-
-function calcBurst(closes: number[], highs: number[]): boolean {
-  if (closes.length < 21) return false;
-  
-  const currentClose = closes[closes.length - 1];
-  
-  // 20-week high (excluding current week)
-  const prev20Highs = highs.slice(-21, -1);
-  const twentyWeekHigh = Math.max(...prev20Highs);
-  
-  // Average weekly move (absolute) over last 20 weeks
-  const weeklyMoves: number[] = [];
-  for (let i = closes.length - 20; i < closes.length; i++) {
-    weeklyMoves.push(Math.abs(closes[i] - closes[i - 1]));
-  }
-  const avgMove = weeklyMoves.reduce((a, b) => a + b, 0) / weeklyMoves.length;
-  
-  const currentMove = Math.abs(closes[closes.length - 1] - closes[closes.length - 2]);
-  
-  return currentClose > twentyWeekHigh && currentMove > 2 * avgMove;
-}
-
 // ─── Polygon Fetch ───
 
 async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
@@ -122,7 +121,7 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
 } | null> {
   const to = new Date();
   const from = new Date();
-  from.setFullYear(from.getFullYear() - 2); // 2 years for enough weekly data
+  from.setFullYear(from.getFullYear() - 2);
 
   const fromStr = from.toISOString().split('T')[0];
   const toStr = to.toISOString().split('T')[0];
@@ -176,6 +175,28 @@ async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values
   }
 }
 
+// ─── Polygon EMA Fetch (Stock EMA logic - same as analysis page) ───
+
+async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): Promise<number | null> {
+  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timespan=week&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apiKey=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error(`Polygon EMA(${window}) API error for ${ticker}: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!data?.results?.values?.length) {
+      console.error(`No EMA(${window}) data for ${ticker}`);
+      return null;
+    }
+    return data.results.values[0].value;
+  } catch (e) {
+    console.error(`Error fetching EMA(${window}) for ${ticker}:`, e);
+    return null;
+  }
+}
+
 // ─── Main Handler ───
 
 serve(async (req) => {
@@ -198,17 +219,23 @@ serve(async (req) => {
     // Always include SPY as benchmark
     const allTickers = Array.from(new Set(['SPY', ...tickers.map((t: string) => t.toUpperCase())]));
 
-    // Fetch all weekly data + RSI from Polygon API in parallel
+    // Fetch all weekly data + RSI + EMA from Polygon API in parallel
     const dataMap: Record<string, Awaited<ReturnType<typeof fetchWeeklyData>>> = {};
     const rsiMap: Record<string, Awaited<ReturnType<typeof fetchPolygonRSI>>> = {};
+    const ema8Map: Record<string, number | null> = {};
+    const ema21Map: Record<string, number | null> = {};
     
     await Promise.all(allTickers.map(async (ticker) => {
-      const [weeklyData, rsiData] = await Promise.all([
+      const [weeklyData, rsiData, ema8Val, ema21Val] = await Promise.all([
         fetchWeeklyData(ticker, apiKey),
         fetchPolygonRSI(ticker, apiKey),
+        fetchPolygonEMA(ticker, apiKey, 8),
+        fetchPolygonEMA(ticker, apiKey, 21),
       ]);
       dataMap[ticker] = weeklyData;
       rsiMap[ticker] = rsiData;
+      ema8Map[ticker] = ema8Val;
+      ema21Map[ticker] = ema21Val;
     }));
 
     const spyData = dataMap['SPY'];
@@ -246,24 +273,28 @@ serve(async (req) => {
       // Local RSI calculation for chart candles
       const rsiArr = calcRSI(closes, 14);
 
-      // EMA 8 × EMA 21 crossover
+      // EMA 8 × EMA 21 crossover (from Polygon API - stock EMA logic)
+      const ema8Val = ema8Map[ticker];
+      const ema21Val = ema21Map[ticker];
+      let emaCrossover = 'N/A';
+      if (ema8Val != null && ema21Val != null) {
+        emaCrossover = ema8Val > ema21Val ? 'Bullish' : 'Bearish';
+      }
+
+      // Local EMA for chart candles
       const ema8 = calcEMA(closes, 8);
       const ema21 = calcEMA(closes, 21);
-      const emaCrossover = ema8[ema8.length - 1] > ema21[ema21.length - 1] ? 'Bullish' : 'Bearish';
 
-      // MACD
-      const { macdLine, signalLine, histogram } = calcMACD(closes);
-      const macdSignal = macdLine[macdLine.length - 1] > signalLine[signalLine.length - 1] ? 'Bullish' : 'Bearish';
+      // MACD (stock logic: fast=5, slow=13, signal=5 with crossover detection)
+      const { macdLine, signalLine, histogram, crossover: macdSignal } = calcStockMACD(closes);
 
       // RRG
       let rrgQuadrant = 'N/A';
       let rrgTrail: { rsRatio: number; rsMomentum: number; date: string }[] = [];
       if (ticker === 'SPY') {
         rrgQuadrant = 'Benchmark';
-        // SPY is the benchmark, fixed at (100, 100)
         rrgTrail = [{ rsRatio: 100, rsMomentum: 100, date: new Date(timestamps[timestamps.length - 1]).toISOString().split('T')[0] }];
       } else {
-        // Align lengths
         const minLen = Math.min(closes.length, spyData.closes.length);
         const tickerSlice = closes.slice(-minLen);
         const spySlice = spyData.closes.slice(-minLen);
@@ -277,7 +308,6 @@ serve(async (req) => {
           rsMomentum[rsMomentum.length - 1]
         );
 
-        // Build trail of last 12 data points
         const trailLen = Math.min(12, rsRatio.length);
         for (let j = rsRatio.length - trailLen; j < rsRatio.length; j++) {
           if (!isNaN(rsRatio[j]) && !isNaN(rsMomentum[j])) {
@@ -289,9 +319,6 @@ serve(async (req) => {
           }
         }
       }
-
-      // Burst
-      const isBurst = calcBurst(closes, highs);
 
       // Build last 52 weeks of candle data for charting
       const candleCount = Math.min(52, closes.length);
@@ -321,7 +348,7 @@ serve(async (req) => {
         macdSignal,
         rrgQuadrant,
         rrgTrail,
-        burst: isBurst,
+        burst: null, // Burst removed from matrix
         weeklyCandles,
       });
     }

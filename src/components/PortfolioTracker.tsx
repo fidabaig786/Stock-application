@@ -31,7 +31,9 @@ export const PortfolioTracker: React.FC = () => {
     index_buy_price: '',
     stop_loss_price: '',
     holding: '1',
-    comments: ''
+    comments: '',
+    position_type: 'Stocks',
+    maturity_date: ''
   });
 
   useEffect(() => {
@@ -110,7 +112,9 @@ export const PortfolioTracker: React.FC = () => {
       index_buy_price: parseFloat(formData.index_buy_price),
       stop_loss_price: formData.stop_loss_price ? parseFloat(formData.stop_loss_price) : undefined,
       holding: parseInt(formData.holding),
-      comments: formData.comments || undefined
+      comments: formData.comments || undefined,
+      position_type: formData.position_type,
+      maturity_date: formData.position_type === 'Options' && formData.maturity_date ? formData.maturity_date : undefined
     };
 
     if (editingId) {
@@ -129,7 +133,9 @@ export const PortfolioTracker: React.FC = () => {
       index_buy_price: '',
       stop_loss_price: '',
       holding: '1',
-      comments: ''
+      comments: '',
+      position_type: 'Stocks',
+      maturity_date: ''
     });
     setShowAddForm(false);
   };
@@ -144,7 +150,9 @@ export const PortfolioTracker: React.FC = () => {
       index_buy_price: position.index_buy_price.toString(),
       stop_loss_price: position.stop_loss_price?.toString() || '',
       holding: position.holding.toString(),
-      comments: position.comments || ''
+      comments: position.comments || '',
+      position_type: (position as any).position_type || 'Stocks',
+      maturity_date: (position as any).maturity_date || ''
     });
     setEditingId(position.id);
     setShowAddForm(true);
@@ -370,7 +378,9 @@ export const PortfolioTracker: React.FC = () => {
                     index_buy_price: '',
                     stop_loss_price: '',
                     holding: '1',
-                    comments: ''
+                    comments: '',
+                    position_type: 'Stocks',
+                    maturity_date: ''
                   });
                 }}
                 className="bg-gradient-primary"
@@ -385,6 +395,18 @@ export const PortfolioTracker: React.FC = () => {
           {showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-4 border rounded-lg bg-card/50 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="position_type">Type</Label>
+                  <Select value={formData.position_type} onValueChange={(v) => setFormData({ ...formData, position_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Stocks">Stocks</SelectItem>
+                      <SelectItem value="Options">Options</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label htmlFor="ticker">Ticker</Label>
                   <Input
@@ -426,6 +448,17 @@ export const PortfolioTracker: React.FC = () => {
                     required
                   />
                 </div>
+                {formData.position_type === 'Options' && (
+                  <div>
+                    <Label htmlFor="maturity_date">Date of Maturity</Label>
+                    <Input
+                      id="maturity_date"
+                      type="date"
+                      value={formData.maturity_date}
+                      onChange={(e) => setFormData({ ...formData, maturity_date: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="index_ticker">Index Ticker</Label>
                   <Input
@@ -602,6 +635,14 @@ export const PortfolioTracker: React.FC = () => {
                                 {position.ticker}
                                 <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </button>
+                              <Badge variant="outline" className="text-xs">
+                                {position.position_type || 'Stocks'}
+                              </Badge>
+                              {position.position_type === 'Options' && position.maturity_date && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Exp: {new Date(position.maturity_date).toLocaleDateString('en-US')}
+                                </Badge>
+                              )}
                               {!position.stop_loss_price && (
                                 <Badge variant="destructive" className="flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
