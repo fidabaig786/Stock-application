@@ -29,68 +29,71 @@ const ALL_SECTOR_ETFS = ['XLK', 'XLF', 'XLV', 'XLE', 'XLY', 'XLI', 'XLP', 'XLU',
 
 // ─── Yahoo Finance Fetch ───
 
-async function fetchYahooMetadata(ticker: string): Promise<{
-  sector: string | null;
-  earningsDates: string[];
-}> {
-  const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-  
-  let sector: string | null = null;
-  let earningsDates: string[] = [];
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-  // --- Fetch sector & earnings via quoteSummary with crumb ---
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
   try {
-    // Step 1: Get cookies from Yahoo Finance page
-    const pageRes = await fetch(`https://finance.yahoo.com/quote/${ticker}/`, {
-      headers: { 'User-Agent': userAgent },
-      redirect: 'follow',
+    // yfinance uses fc.yahoo.com to get initial cookies
+    const initRes = await fetch('https://fc.yahoo.com/', {
+      headers: { 'User-Agent': USER_AGENT },
+      redirect: 'manual',
     });
-    const cookies = pageRes.headers.get('set-cookie') || '';
-    const pageText = await pageRes.text();
+    const cookie = initRes.headers.get('set-cookie') || '';
 
-    // Step 2: Extract crumb from page HTML
-    let crumb: string | null = null;
-    const crumbMatch = pageText.match(/"crumb"\s*:\s*"([^"]+)"/);
-    if (crumbMatch) {
-      crumb = crumbMatch[1].replace(/\\u002F/g, '/');
+    // Then fetch crumb with those cookies
+    const crumbRes = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+      headers: { 'User-Agent': USER_AGENT, 'Cookie': cookie },
+    });
+    if (!crumbRes.ok) {
+      console.error('Crumb fetch failed:', crumbRes.status);
+      return null;
     }
-
-    if (crumb) {
-      // Step 3: Use crumb + cookies to call quoteSummary API
-      const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,calendarEvents&crumb=${encodeURIComponent(crumb)}`;
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': userAgent,
-          'Cookie': cookies,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const result = data?.quoteSummary?.result?.[0];
-
-        sector = result?.assetProfile?.sector || null;
-
-        const earningsRaw = result?.calendarEvents?.earnings?.earningsDate || [];
-        earningsDates = earningsRaw.map((d: any) => {
-          if (d?.fmt) return d.fmt;
-          if (d?.raw) {
-            const date = new Date(d.raw * 1000);
-            return date.toISOString().split('T')[0];
-          }
-          return null;
-        }).filter(Boolean) as string[];
-      } else {
-        console.error(`Yahoo quoteSummary error for ${ticker}: ${res.status}`);
-      }
-    } else {
-      console.error(`Could not extract crumb for ${ticker}`);
+    const crumb = await crumbRes.text();
+    if (!crumb || crumb.includes('<')) {
+      console.error('Invalid crumb response');
+      return null;
     }
+    return { crumb: crumb.trim(), cookie };
   } catch (e) {
-    console.error(`Error fetching Yahoo metadata for ${ticker}:`, e);
+    console.error('getYahooCrumb error:', e);
+    return null;
   }
+}
 
-  return { sector, earningsDates };
+async function fetchYahooMetadata(
+  ticker: string,
+  auth: { crumb: string; cookie: string } | null
+): Promise<{ sector: string | null; earningsDates: string[] }> {
+  if (!auth) return { sector: null, earningsDates: [] };
+
+  try {
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,calendarEvents&crumb=${encodeURIComponent(auth.crumb)}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, 'Cookie': auth.cookie },
+    });
+
+    if (!res.ok) {
+      console.error(`Yahoo error for ${ticker}: ${res.status}`);
+      return { sector: null, earningsDates: [] };
+    }
+
+    const data = await res.json();
+    const result = data?.quoteSummary?.result?.[0];
+
+    const sector = result?.assetProfile?.sector || null;
+
+    const earningsRaw = result?.calendarEvents?.earnings?.earningsDate || [];
+    const earningsDates = earningsRaw.map((d: any) => {
+      if (d?.fmt) return d.fmt;
+      if (d?.raw) return new Date(d.raw * 1000).toISOString().split('T')[0];
+      return null;
+    }).filter(Boolean) as string[];
+
+    return { sector, earningsDates };
+  } catch (e) {
+    console.error(`Error fetching metadata for ${ticker}:`, e);
+    return { sector: null, earningsDates: [] };
+  }
 }
 
 // ─── RRG Helpers ───
@@ -164,10 +167,13 @@ serve(async (req) => {
 
     const upperTickers = tickers.map((t: string) => t.toUpperCase());
 
-    // Step 1: Fetch Yahoo metadata for all tickers in parallel
+    // Step 1: Get Yahoo crumb once, then fetch metadata for all tickers
+    const auth = await getYahooCrumb();
+    if (!auth) console.warn('Yahoo crumb unavailable - earnings/sector data will be empty');
+
     const yahooResults = await Promise.all(
       upperTickers.map(async (ticker) => {
-        const meta = await fetchYahooMetadata(ticker);
+        const meta = await fetchYahooMetadata(ticker, auth);
         return { ticker, ...meta };
       })
     );
