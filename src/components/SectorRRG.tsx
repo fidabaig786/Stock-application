@@ -19,11 +19,22 @@ export const SectorRRG: React.FC = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('sector-rrg');
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Sector RRG invoke error:', error);
+        throw new Error(error.message || 'Edge function invocation failed');
+      }
+
+      if (!data) {
+        throw new Error('No data returned from edge function');
+      }
+
+      if (data.error) {
+        throw new Error(`Server error: ${data.error}`);
+      }
 
       setLatestDate(data.latestDate || null);
 
-      // Map to MatrixRow format for RRGChart compatibility
       const rows: MatrixRow[] = (data.results || []).map((r: any) => ({
         ticker: r.ticker,
         currentPrice: null,
@@ -41,11 +52,13 @@ export const SectorRRG: React.FC = () => {
         weeklyCandles: [],
       }));
       setMatrixData(rows);
-    } catch (error) {
+      
+      console.log(`[SectorRRG] Loaded ${rows.length} sectors, latest: ${data.latestDate}`);
+    } catch (error: any) {
       console.error('Sector RRG fetch error:', error);
       toast({
         title: 'Sector RRG Error',
-        description: 'Failed to fetch sector RRG data. Please try again.',
+        description: error?.message || 'Failed to fetch sector RRG data. Please try again.',
         variant: 'destructive',
       });
     } finally {
