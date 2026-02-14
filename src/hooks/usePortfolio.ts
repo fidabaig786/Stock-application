@@ -15,6 +15,8 @@ export interface PortfolioPosition {
   comments?: string;
   current_price?: number;
   index_current_price?: number;
+  position_type: string;
+  maturity_date?: string;
 }
 
 export const usePortfolio = (userId: string | undefined) => {

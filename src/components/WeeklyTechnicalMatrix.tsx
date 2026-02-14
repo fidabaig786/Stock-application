@@ -166,8 +166,8 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         <TableHead className="text-center">EMA 8×21</TableHead>
                         <TableHead className="text-center">MACD</TableHead>
                         <TableHead className="text-center">RRG Quadrant</TableHead>
-                        <TableHead className="text-center">Burst</TableHead>
-                        <TableHead className="text-center w-20">Chart</TableHead>
+                        {/* Chart column commented out for now */}
+                        {/* <TableHead className="text-center w-20">Chart</TableHead> */}
                         <TableHead className="text-center w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -207,14 +207,8 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                           <TableCell className="text-center">
                             {getRRGBadge(row.rrgQuadrant)}
                           </TableCell>
-                          <TableCell className="text-center">
-                            {row.burst === true ? (
-                              <Badge className="bg-warning/20 text-warning border-warning/30">🚀 Burst</Badge>
-                            ) : row.burst === false ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell className="text-center">
+                          {/* Chart button commented out for now */}
+                          {/* <TableCell className="text-center">
                             <Button
                               size="sm"
                               variant="ghost"
@@ -225,7 +219,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                             >
                               <BarChart3 className="h-4 w-4" />
                             </Button>
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className="text-center">
                             {row.ticker !== 'SPY' && (
                               <button
@@ -245,7 +239,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
 
                       {matrixData.length === 0 && !isLoading && (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                             Click Refresh to load weekly technical data
                           </TableCell>
                         </TableRow>

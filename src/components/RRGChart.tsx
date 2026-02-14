@@ -45,6 +45,7 @@ interface TrailDataPoint {
   y: number;
   ticker: string;
   isLatest: boolean;
+  isOldest: boolean;
   trailIndex: number;
   trailLength: number;
   date: string;
@@ -60,8 +61,43 @@ const CustomTooltip = ({ active, payload }: any) => {
       <p>RS-Ratio: {d.x.toFixed(2)}</p>
       <p>RS-Momentum: {d.y.toFixed(2)}</p>
       <p>Quadrant: {d.quadrant}</p>
-      <p className="text-muted-foreground text-xs">{d.date}</p>
+      <p className="text-muted-foreground text-xs">
+        {d.date}
+        {d.isOldest ? ' (Start)' : d.isLatest ? ' (Latest)' : ''}
+      </p>
     </div>
+  );
+};
+
+// Custom dot shape for the latest point (arrow/triangle marker)
+const ArrowDot = (props: any) => {
+  const { cx, cy, fill, stroke, strokeWidth } = props;
+  // Draw a diamond/arrow shape
+  const size = 8;
+  return (
+    <polygon
+      points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`}
+      fill={fill}
+      stroke={stroke || 'hsl(var(--foreground))'}
+      strokeWidth={strokeWidth || 1.5}
+    />
+  );
+};
+
+// Square dot for the oldest point (start)
+const SquareDot = (props: any) => {
+  const { cx, cy, fill, fillOpacity } = props;
+  const size = 5;
+  return (
+    <rect
+      x={cx - size}
+      y={cy - size}
+      width={size * 2}
+      height={size * 2}
+      fill={fill}
+      fillOpacity={fillOpacity}
+      stroke="none"
+    />
   );
 };
 
@@ -88,6 +124,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
           y: pt.rsMomentum,
           ticker: row.ticker,
           isLatest: idx === trail.length - 1,
+          isOldest: idx === 0,
           trailIndex: idx,
           trailLength: trail.length,
           date: pt.date,
@@ -171,22 +208,53 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
               lineType="joint"
               onClick={() => onTickerClick(ticker)}
               cursor="pointer"
-            >
-              {pts.map((pt, i) => {
-                const opacity = pt.isLatest ? 1 : 0.25 + (pt.trailIndex / pt.trailLength) * 0.5;
-                const size = pt.isLatest ? 80 : 20 + (pt.trailIndex / pt.trailLength) * 20;
+              shape={(props: any) => {
+                const pt = props.payload as TrailDataPoint;
                 const isHighlighted = highlightedTicker === ticker;
+                const opacity = pt.isLatest ? 1 : 0.25 + (pt.trailIndex / pt.trailLength) * 0.5;
+                const finalOpacity = isHighlighted ? 1 : highlightedTicker ? opacity * 0.3 : opacity;
+
+                if (pt.isLatest) {
+                  // Latest point: diamond marker
+                  return (
+                    <ArrowDot
+                      cx={props.cx}
+                      cy={props.cy}
+                      fill={colorMap[ticker]}
+                      stroke={isHighlighted ? 'hsl(var(--foreground))' : colorMap[ticker]}
+                      strokeWidth={isHighlighted ? 2 : 1.5}
+                    />
+                  );
+                }
+                if (pt.isOldest) {
+                  // Oldest point: square marker
+                  return (
+                    <SquareDot
+                      cx={props.cx}
+                      cy={props.cy}
+                      fill={colorMap[ticker]}
+                      fillOpacity={finalOpacity}
+                    />
+                  );
+                }
+                // Regular trail point: circle
+                const size = 20 + (pt.trailIndex / pt.trailLength) * 20;
+                const r = Math.sqrt(size / Math.PI);
                 return (
-                  <Cell
-                    key={i}
+                  <circle
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={r}
                     fill={colorMap[ticker]}
-                    fillOpacity={isHighlighted ? 1 : highlightedTicker ? opacity * 0.3 : opacity}
-                    r={Math.sqrt(size / Math.PI)}
-                    stroke={pt.isLatest && isHighlighted ? 'hsl(var(--foreground))' : 'none'}
-                    strokeWidth={pt.isLatest && isHighlighted ? 2 : 0}
+                    fillOpacity={finalOpacity}
+                    stroke="none"
                   />
                 );
-              })}
+              }}
+            >
+              {pts.map((pt, i) => (
+                <Cell key={i} fill={colorMap[ticker]} />
+              ))}
             </Scatter>
           ))}
         </ScatterChart>
@@ -198,25 +266,17 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
       <div className="absolute bottom-10 left-10 text-xs font-semibold text-destructive/70 pointer-events-none">Lagging</div>
       <div className="absolute top-6 left-10 text-xs font-semibold text-info/70 pointer-events-none">Improving</div>
 
-      {/* Ticker labels on latest points */}
-      <div className="absolute inset-0 pointer-events-none">
-        {Object.entries(tickerGroups).map(([ticker, pts]) => {
-          const latest = pts.find(p => p.isLatest);
-          if (!latest) return null;
-          return (
-            <div
-              key={ticker}
-              className="absolute text-[10px] font-bold pointer-events-none"
-              style={{
-                color: colorMap[ticker],
-                opacity: highlightedTicker && highlightedTicker !== ticker ? 0.3 : 1,
-              }}
-            >
-              {/* Labels are positioned by the chart itself via tooltip; 
-                  we skip manual absolute positioning for simplicity */}
-            </div>
-          );
-        })}
+      {/* Start/Finish legend */}
+      <div className="flex items-center justify-center gap-6 mt-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 bg-muted-foreground/60" /> Start (oldest)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 12 12" className="inline-block">
+            <polygon points="6,0 12,6 6,12 0,6" fill="currentColor" />
+          </svg>
+          Finish (latest)
+        </span>
       </div>
 
       {/* Legend */}
