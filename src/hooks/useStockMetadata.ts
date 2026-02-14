@@ -7,7 +7,6 @@ export interface StockMetadata {
   sectorETF: string | null;
   sectorQuadrant: string | null;
   sectorColor: 'red' | 'green' | null;
-  earningsDates: string[] | null;
 }
 
 export const useStockMetadata = () => {
