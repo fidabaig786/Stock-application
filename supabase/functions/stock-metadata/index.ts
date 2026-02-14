@@ -128,7 +128,7 @@ async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<number
   const from = new Date();
   from.setFullYear(from.getFullYear() - 2);
 
-  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${from.toISOString().split('T')[0]}/${to.toISOString().split('T')[0]}?adjusted=true&sort=asc&limit=200&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${from.toISOString().split('T')[0]}/${to.toISOString().split('T')[0]}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   try {
     const res = await fetch(url);
@@ -193,15 +193,19 @@ serve(async (req) => {
     const spyCloses = closesMap['SPY'];
 
     if (spyCloses) {
+      // Build timestamp-aligned data for each ETF vs SPY
+      const spyRaw = closesMap['SPY'];
       for (const etf of Array.from(neededETFs)) {
-        const etfCloses = closesMap[etf];
-        if (!etfCloses) {
+        const etfRaw = closesMap[etf];
+        if (!etfRaw) {
           sectorQuadrants[etf] = 'N/A';
           continue;
         }
-        const minLen = Math.min(etfCloses.length, spyCloses.length);
-        const etfSlice = etfCloses.slice(-minLen);
-        const spySlice = spyCloses.slice(-minLen);
+        // closesMap stores {closes, timestamps} now - but current code just stores number[]
+        // Since fetchWeeklyCloses returns number[] only, use positional alignment (same endpoint params)
+        const minLen = Math.min(etfRaw.length, spyRaw!.length);
+        const etfSlice = etfRaw.slice(-minLen);
+        const spySlice = spyRaw!.slice(-minLen);
 
         const rsRatio = calcRSRatio(etfSlice, spySlice, 10);
         const rsMomentum = calcRSMomentum(rsRatio, 10);
