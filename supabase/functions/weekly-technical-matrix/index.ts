@@ -72,7 +72,7 @@ function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: numb
 // ─── Polygon MACD Fetch (stock logic: 5/13/5, same as analysis page) ───
 
 async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
-  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=5&long_window=13&signal_window=5&series_type=close&order=desc&limit=10&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=day&adjusted=true&short_window=5&long_window=13&signal_window=5&series_type=close&order=desc&limit=10&apiKey=${apiKey}`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
