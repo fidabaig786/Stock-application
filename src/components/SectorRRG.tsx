@@ -18,11 +18,33 @@ export const SectorRRG: React.FC = () => {
   const fetchRRG = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sector-rrg');
+      // Use direct fetch with longer timeout since batched Polygon calls take ~15-20s
+      const supabaseUrl = 'https://ewvdjypgzfpoldttblhs.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3dmRqeXBnemZwb2xkdHRibGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0ODU3MzYsImV4cCI6MjA3MDA2MTczNn0.y8SJZzRVAzuBm9WP6tES9Lvp97f7ewumpjISdI1TTV8';
       
-      if (error) {
-        console.error('Sector RRG invoke error:', error);
-        throw new Error(error.message || 'Edge function invocation failed');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/sector-rrg`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+      
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(`Server error: ${data.error}`);
       }
 
       if (!data) {
