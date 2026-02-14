@@ -49,7 +49,7 @@ function calcRSI(closes: number[], period = 14): number[] {
   return rsi;
 }
 
-// Stock MACD logic: EWM with span fast=5, slow=13, signal=5 (same as analysis page)
+// Stock MACD logic: local EWM with span fast=5, slow=13, signal=5 (for chart candles)
 function calcPandasEWM(data: number[], span: number): number[] {
   if (data.length === 0) return [];
   const alpha = 2 / (span + 1);
@@ -60,28 +60,54 @@ function calcPandasEWM(data: number[], span: number): number[] {
   return result;
 }
 
-function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[]; crossover: string } {
+function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
   const emaFast = calcPandasEWM(closes, 5);
   const emaSlow = calcPandasEWM(closes, 13);
   const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
   const signalLine = calcPandasEWM(macdLine, 5);
   const histogram = macdLine.map((v, i) => v - signalLine[i]);
+  return { macdLine, signalLine, histogram };
+}
 
-  // Crossover detection (same as stock-analysis)
-  const macdAbove = macdLine.map((v, i) => v > signalLine[i]);
-  let latestCrossoverIndex = -1;
-  for (let i = 1; i < macdAbove.length; i++) {
-    if (macdAbove[i] !== macdAbove[i - 1]) {
-      latestCrossoverIndex = i;
+// ─── Polygon MACD Fetch (stock logic: 5/13/5, same as analysis page) ───
+
+async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
+  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=5&long_window=13&signal_window=5&series_type=close&order=desc&limit=10&apiKey=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error(`Polygon MACD API error for ${ticker}: ${res.status}`);
+      return { crossover: 'N/A' };
     }
-  }
+    const data = await res.json();
+    if (!data?.results?.values || data.results.values.length < 2) {
+      console.error(`No MACD data for ${ticker}`);
+      return { crossover: 'N/A' };
+    }
 
-  let crossover = 'N/A';
-  if (latestCrossoverIndex !== -1) {
-    crossover = macdLine[latestCrossoverIndex] > signalLine[latestCrossoverIndex] ? 'Bullish' : 'Bearish';
-  }
+    const values = data.results.values; // newest first
+    // Find latest crossover: detect where MACD crosses signal
+    const macdAbove = values.map((v: any) => v.value > v.signal);
+    let latestCrossoverIndex = -1;
+    for (let i = 1; i < macdAbove.length; i++) {
+      if (macdAbove[i] !== macdAbove[i - 1]) {
+        latestCrossoverIndex = i;
+        break; // newest first, so first change is the latest crossover
+      }
+    }
 
-  return { macdLine, signalLine, histogram, crossover };
+    if (latestCrossoverIndex === -1) {
+      return { crossover: 'N/A' };
+    }
+
+    // The crossover happened at index latestCrossoverIndex (older side)
+    // The side before (index latestCrossoverIndex-1) is the current state after crossover
+    const currentSide = macdAbove[latestCrossoverIndex - 1];
+    return { crossover: currentSide ? 'Bullish' : 'Bearish' };
+  } catch (e) {
+    console.error(`Error fetching MACD for ${ticker}:`, e);
+    return { crossover: 'N/A' };
+  }
 }
 
 // ─── RRG Helpers ───
@@ -219,23 +245,26 @@ serve(async (req) => {
     // Always include SPY as benchmark
     const allTickers = Array.from(new Set(['SPY', ...tickers.map((t: string) => t.toUpperCase())]));
 
-    // Fetch all weekly data + RSI + EMA from Polygon API in parallel
+    // Fetch all weekly data + RSI + EMA + MACD from Polygon API in parallel
     const dataMap: Record<string, Awaited<ReturnType<typeof fetchWeeklyData>>> = {};
     const rsiMap: Record<string, Awaited<ReturnType<typeof fetchPolygonRSI>>> = {};
     const ema8Map: Record<string, number | null> = {};
     const ema21Map: Record<string, number | null> = {};
+    const macdMap: Record<string, { crossover: string }> = {};
     
     await Promise.all(allTickers.map(async (ticker) => {
-      const [weeklyData, rsiData, ema8Val, ema21Val] = await Promise.all([
+      const [weeklyData, rsiData, ema8Val, ema21Val, macdData] = await Promise.all([
         fetchWeeklyData(ticker, apiKey),
         fetchPolygonRSI(ticker, apiKey),
         fetchPolygonEMA(ticker, apiKey, 8),
         fetchPolygonEMA(ticker, apiKey, 21),
+        fetchPolygonMACD(ticker, apiKey),
       ]);
       dataMap[ticker] = weeklyData;
       rsiMap[ticker] = rsiData;
       ema8Map[ticker] = ema8Val;
       ema21Map[ticker] = ema21Val;
+      macdMap[ticker] = macdData;
     }));
 
     const spyData = dataMap['SPY'];
@@ -285,8 +314,10 @@ serve(async (req) => {
       const ema8 = calcEMA(closes, 8);
       const ema21 = calcEMA(closes, 21);
 
-      // MACD (stock logic: fast=5, slow=13, signal=5 with crossover detection)
-      const { macdLine, signalLine, histogram, crossover: macdSignal } = calcStockMACD(closes);
+      // MACD from Polygon API (stock logic: fast=5, slow=13, signal=5 with crossover detection)
+      const macdSignal = macdMap[ticker]?.crossover ?? 'N/A';
+      // Local MACD for chart candles only
+      const { macdLine, signalLine, histogram } = calcStockMACD(closes);
 
       // RRG
       let rrgQuadrant = 'N/A';
