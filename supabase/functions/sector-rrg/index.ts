@@ -1,4 +1,4 @@
-// Sector RRG edge function — z-score based RS-Ratio & RS-Momentum
+// Sector RRG edge function — z-score based RS-Ratio & RS-Momentum (v2)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -16,6 +16,8 @@ const MOM_ZSCALE = 10;
 
 interface Bar { t: number; c: number }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ dates: number[]; closes: number[] } | null> {
   const start = "2023-01-01";
   const end = new Date().toISOString().split("T")[0];
@@ -23,10 +25,24 @@ async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ date
 
   try {
     const res = await fetch(url);
-    if (!res.ok) { console.error(`${ticker} HTTP ${res.status}`); return null; }
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`${ticker} HTTP ${res.status}: ${text.substring(0, 200)}`);
+      return null;
+    }
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error(`${ticker} non-JSON response: ${text.substring(0, 200)}`);
+      return null;
+    }
     const data = await res.json();
     const results: Bar[] = data?.results || [];
-    if (results.length < 30) { console.error(`${ticker} only ${results.length} bars`); return null; }
+    if (results.length < 20) {
+      console.error(`${ticker} only ${results.length} bars`);
+      return null;
+    }
+    console.log(`${ticker}: ${results.length} bars, latest: ${new Date(results[results.length-1].t).toISOString().split("T")[0]}`);
     return {
       dates: results.map(r => r.t),
       closes: results.map(r => r.c),
@@ -37,7 +53,6 @@ async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ date
   }
 }
 
-// Rolling mean
 function rollingMean(arr: number[], window: number): (number | null)[] {
   const minPeriods = Math.max(3, Math.floor(window / 2));
   const result: (number | null)[] = [];
@@ -53,7 +68,6 @@ function rollingMean(arr: number[], window: number): (number | null)[] {
   return result;
 }
 
-// Z-score normalization centered at 100
 function zscoreCenter(values: (number | null)[], scale: number): (number | null)[] {
   const valid = values.filter(v => v !== null) as number[];
   if (valid.length === 0) return values;
@@ -64,7 +78,6 @@ function zscoreCenter(values: (number | null)[], scale: number): (number | null)
   return values.map(v => v !== null ? 100 + scale * ((v - mean) / sd) : null);
 }
 
-// Pct change with period
 function pctChange(arr: (number | null)[], period: number): (number | null)[] {
   return arr.map((v, i) => {
     if (i < period || v === null || arr[i - period] === null || arr[i - period] === 0) return null;
@@ -74,39 +87,47 @@ function pctChange(arr: (number | null)[], period: number): (number | null)[] {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const apiKey = Deno.env.get("POLYGON_API_KEY");
     if (!apiKey) throw new Error("POLYGON_API_KEY not configured");
 
-    // 1) Fetch all weekly closes
-    const allTickers = [BENCHMARK, ...SECTORS];
-    const fetchResults = await Promise.all(allTickers.map(t => fetchWeeklyCloses(t, apiKey)));
+    console.log(`[sector-rrg v2] Starting fetch at ${new Date().toISOString()}`);
 
+    // Fetch tickers in batches of 4 with small delays to avoid rate limiting
+    const allTickers = [BENCHMARK, ...SECTORS];
     const closesMap: Record<string, { dates: number[]; closes: number[] }> = {};
-    allTickers.forEach((t, i) => {
-      if (fetchResults[i]) closesMap[t] = fetchResults[i]!;
-    });
+    const BATCH_SIZE = 4;
+
+    for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
+      const batch = allTickers.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(t => fetchWeeklyCloses(t, apiKey)));
+      batch.forEach((t, idx) => {
+        if (results[idx]) closesMap[t] = results[idx]!;
+      });
+      // Small delay between batches to avoid rate limiting
+      if (i + BATCH_SIZE < allTickers.length) {
+        await sleep(250);
+      }
+    }
 
     if (!closesMap[BENCHMARK]) throw new Error("Failed to fetch SPY data");
 
-    // 2) Align all series by timestamp intersection
-    const benchDates = new Set(closesMap[BENCHMARK].dates.map(d => d));
     const availableSectors = SECTORS.filter(s => closesMap[s]);
+    console.log(`[sector-rrg] Got ${Object.keys(closesMap).length} tickers, ${availableSectors.length} sectors`);
 
-    // Find common dates across benchmark and all available sectors
-    let commonDates = [...benchDates];
+    // Find common dates
+    let commonDates = [...closesMap[BENCHMARK].dates];
     for (const s of availableSectors) {
       const sectorDates = new Set(closesMap[s].dates);
       commonDates = commonDates.filter(d => sectorDates.has(d));
     }
     commonDates.sort((a, b) => a - b);
 
-    if (commonDates.length < 30) throw new Error("Not enough common weekly data");
+    if (commonDates.length < 20) throw new Error(`Only ${commonDates.length} common weeks`);
 
-    // Build aligned close arrays
     const buildAligned = (ticker: string): number[] => {
       const dateMap = new Map<number, number>();
       closesMap[ticker].dates.forEach((d, i) => dateMap.set(d, closesMap[ticker].closes[i]));
@@ -117,7 +138,6 @@ serve(async (req) => {
     const latestDate = new Date(commonDates[commonDates.length - 1]).toISOString().split("T")[0];
     console.log(`[sector-rrg] ${commonDates.length} aligned weeks, latest: ${latestDate}`);
 
-    // 3) For each sector: RS -> smooth -> z-score RS-Ratio -> momentum -> z-score RS-Momentum
     const results: Array<{
       ticker: string;
       quadrant: string;
@@ -128,31 +148,18 @@ serve(async (req) => {
 
     for (const sector of availableSectors) {
       const sectorCloses = buildAligned(sector);
-
-      // Relative strength
       const rs = sectorCloses.map((c, i) => c / benchCloses[i]);
-
-      // Smooth RS with rolling mean
       const rsSmooth = rollingMean(rs, SMOOTH_W);
-
-      // Z-score RS-Ratio
       const rsRatio = zscoreCenter(rsSmooth, RATIO_ZSCALE);
-
-      // Momentum: pct_change of RS-Ratio
       const momRaw = pctChange(rsRatio, MOM_W);
-
-      // Z-score RS-Momentum
       const rsMom = zscoreCenter(momRaw, MOM_ZSCALE);
 
-      // Find valid indices (both rsRatio and rsMom not null)
       const validIndices: number[] = [];
       for (let i = 0; i < commonDates.length; i++) {
         if (rsRatio[i] !== null && rsMom[i] !== null) validIndices.push(i);
       }
-
       if (validIndices.length === 0) continue;
 
-      // Take last TAIL_WEEKS
       const tailIndices = validIndices.slice(-TAIL_WEEKS);
       const trail = tailIndices.map(i => ({
         rsRatio: Math.round(rsRatio[i]! * 100) / 100,
@@ -166,14 +173,10 @@ serve(async (req) => {
       else if (latest.rsRatio >= 100 && latest.rsMomentum < 100) quadrant = "Weakening";
       else if (latest.rsRatio < 100 && latest.rsMomentum >= 100) quadrant = "Improving";
 
-      results.push({
-        ticker: sector,
-        quadrant,
-        rsRatio: latest.rsRatio,
-        rsMomentum: latest.rsMomentum,
-        trail,
-      });
+      results.push({ ticker: sector, quadrant, rsRatio: latest.rsRatio, rsMomentum: latest.rsMomentum, trail });
     }
+
+    console.log(`[sector-rrg] Done. ${results.length} sectors computed.`);
 
     return new Response(
       JSON.stringify({ results, latestDate, benchmark: BENCHMARK }),
