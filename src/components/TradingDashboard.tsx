@@ -14,7 +14,7 @@ import { WatchlistManager } from './WatchlistManager';
 import { AnalysisResults } from './AnalysisResults';
 import { PortfolioTracker } from './PortfolioTracker';
 import { WeeklyTechnicalMatrix } from './WeeklyTechnicalMatrix';
-import { SectorRRG } from './SectorRRG';
+
 
 // Moved to useWatchlist hook
 
@@ -168,9 +168,8 @@ export const TradingDashboard: React.FC = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="matrix" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="matrix">Weekly Matrix</TabsTrigger>
-            <TabsTrigger value="sector-rrg">Sector RRG</TabsTrigger>
             <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
@@ -178,10 +177,6 @@ export const TradingDashboard: React.FC = () => {
 
           <TabsContent value="matrix">
             <WeeklyTechnicalMatrix />
-          </TabsContent>
-
-          <TabsContent value="sector-rrg">
-            <SectorRRG />
           </TabsContent>
 
           <TabsContent value="watchlist">
