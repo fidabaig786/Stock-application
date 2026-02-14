@@ -72,7 +72,7 @@ function calcStockMACD(closes: number[]): { macdLine: number[]; signalLine: numb
 // ─── Polygon MACD Fetch (stock logic: 5/13/5, same as analysis page) ───
 
 async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
-  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=day&adjusted=true&short_window=5&long_window=13&signal_window=5&series_type=close&order=desc&limit=10&apiKey=${apiKey}`;
+  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apiKey=${apiKey}`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -80,30 +80,13 @@ async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ cross
       return { crossover: 'N/A' };
     }
     const data = await res.json();
-    if (!data?.results?.values || data.results.values.length < 2) {
+    if (!data?.results?.values || data.results.values.length < 1) {
       console.error(`No MACD data for ${ticker}`);
       return { crossover: 'N/A' };
     }
 
-    const values = data.results.values; // newest first
-    // Find latest crossover: detect where MACD crosses signal
-    const macdAbove = values.map((v: any) => v.value > v.signal);
-    let latestCrossoverIndex = -1;
-    for (let i = 1; i < macdAbove.length; i++) {
-      if (macdAbove[i] !== macdAbove[i - 1]) {
-        latestCrossoverIndex = i;
-        break; // newest first, so first change is the latest crossover
-      }
-    }
-
-    if (latestCrossoverIndex === -1) {
-      return { crossover: 'N/A' };
-    }
-
-    // The crossover happened at index latestCrossoverIndex (older side)
-    // The side before (index latestCrossoverIndex-1) is the current state after crossover
-    const currentSide = macdAbove[latestCrossoverIndex - 1];
-    return { crossover: currentSide ? 'Bullish' : 'Bearish' };
+    const latest = data.results.values[0]; // newest first
+    return { crossover: latest.value >= latest.signal ? 'Bullish' : 'Bearish' };
   } catch (e) {
     console.error(`Error fetching MACD for ${ticker}:`, e);
     return { crossover: 'N/A' };
