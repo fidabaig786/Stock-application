@@ -16,7 +16,6 @@ import { PortfolioTracker } from './PortfolioTracker';
 import { WeeklyTechnicalMatrix } from './WeeklyTechnicalMatrix';
 import { SectorRRG } from './SectorRRG';
 
-
 // Moved to useWatchlist hook
 
 export interface AnalysisCriteria {
