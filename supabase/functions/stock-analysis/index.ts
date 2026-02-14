@@ -160,10 +160,8 @@ function calculateEMA(data: number[], period: number): number {
 
 async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    // Use Polygon's built-in MACD endpoint for weekly data
-    const endDate = getStableEndDate();
-    
-    const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apikey=${apiKey}`;
+    // Use same URL format as weekly-technical-matrix (no date filter) to ensure identical results
+    const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apikey=${apiKey}`;
 
     const response = await fetchWithRetry(url);
     const data = await response.json();
