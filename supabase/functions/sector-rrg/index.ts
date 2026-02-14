@@ -15,6 +15,8 @@ const MOM_ZSCALE = 10;
 
 interface Bar { t: number; c: number }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ dates: number[]; closes: number[] } | null> {
   const start = "2023-01-01";
   const end = new Date().toISOString().split("T")[0];
@@ -22,8 +24,7 @@ async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ date
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
 
@@ -38,7 +39,7 @@ async function fetchWeeklyCloses(ticker: string, apiKey: string): Promise<{ date
       console.error(`${ticker} only ${results.length} bars`);
       return null;
     }
-    console.log(`${ticker}: ${results.length} bars`);
+    console.log(`${ticker}: ${results.length} bars, latest: ${new Date(results[results.length-1].t).toISOString().split("T")[0]}`);
     return {
       dates: results.map((r: Bar) => r.t),
       closes: results.map((r: Bar) => r.c),
@@ -90,15 +91,23 @@ serve(async (req: Request) => {
     const apiKey = Deno.env.get("POLYGON_API_KEY");
     if (!apiKey) throw new Error("POLYGON_API_KEY not configured");
 
-    console.log(`[sector-rrg] Starting parallel fetch at ${new Date().toISOString()}`);
+    console.log(`[sector-rrg] Starting batched fetch at ${new Date().toISOString()}`);
 
+    // Fetch in batches of 3 with delays to respect Polygon rate limits
     const allTickers = [BENCHMARK, ...SECTORS];
-    const fetchResults = await Promise.all(allTickers.map((t: string) => fetchWeeklyCloses(t, apiKey)));
-    
     const closesMap: Record<string, { dates: number[]; closes: number[] }> = {};
-    allTickers.forEach((t: string, i: number) => {
-      if (fetchResults[i]) closesMap[t] = fetchResults[i]!;
-    });
+    const BATCH_SIZE = 3;
+
+    for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
+      const batch = allTickers.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(t => fetchWeeklyCloses(t, apiKey)));
+      batch.forEach((t, idx) => {
+        if (results[idx]) closesMap[t] = results[idx]!;
+      });
+      if (i + BATCH_SIZE < allTickers.length) {
+        await sleep(1200); // Wait 1.2s between batches to stay under 5 req/min free tier
+      }
+    }
 
     if (!closesMap[BENCHMARK]) throw new Error("Failed to fetch SPY data");
 
@@ -123,6 +132,12 @@ serve(async (req: Request) => {
     const benchCloses = buildAligned(BENCHMARK);
     const latestDate = new Date(commonDates[commonDates.length - 1]).toISOString().split("T")[0];
     console.log(`[sector-rrg] ${commonDates.length} aligned weeks, latest: ${latestDate}`);
+
+    const latestYear = new Date(commonDates[commonDates.length - 1]).getFullYear();
+    const currentYear = new Date().getFullYear();
+    if (latestYear < currentYear) {
+      console.warn(`[sector-rrg] WARNING: Latest data is from ${latestYear}, current year is ${currentYear}`);
+    }
 
     const results: Array<{
       ticker: string;
