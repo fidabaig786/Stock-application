@@ -1,3 +1,4 @@
+// v2 - Updated 2026-02-14: limit=50000, timestamp alignment, debug logging
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
