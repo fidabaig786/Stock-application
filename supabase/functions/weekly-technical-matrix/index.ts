@@ -138,9 +138,11 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
   const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   try {
+    console.log(`Fetching weekly data for ${ticker}: ${fromStr} to ${toStr}`);
     const res = await fetch(url);
     if (!res.ok) {
-      console.error(`Polygon API error for ${ticker}: ${res.status}`);
+      const body = await res.text();
+      console.error(`Polygon API error for ${ticker}: ${res.status} - ${body}`);
       return null;
     }
     const data = await res.json();
@@ -148,6 +150,9 @@ async function fetchWeeklyData(ticker: string, apiKey: string): Promise<{
       console.error(`Insufficient weekly data for ${ticker}: ${data?.results?.length || 0} bars`);
       return null;
     }
+
+    const lastTs = data.results[data.results.length - 1].t;
+    console.log(`${ticker}: got ${data.results.length} bars, latest: ${new Date(lastTs).toISOString().split('T')[0]}`);
 
     return {
       closes: data.results.map((r: any) => r.c),
