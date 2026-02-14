@@ -1,4 +1,4 @@
-// v4 - Unified with stock-analysis: retry logic, consistent API calls
+// v5 - Force redeploy: unified MACD/EMA with stock-analysis
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -270,7 +270,7 @@ serve(async (req) => {
   try {
     const { tickers } = await req.json();
     const apiKey = Deno.env.get('POLYGON_API_KEY');
-    console.log(`[v3] weekly-technical-matrix invoked at ${new Date().toISOString()}, apiKey present: ${!!apiKey}, tickers: ${JSON.stringify(tickers)}`);
+    console.log(`[v5] weekly-technical-matrix invoked at ${new Date().toISOString()}, apiKey present: ${!!apiKey}, tickers: ${JSON.stringify(tickers)}`);
 
     if (!apiKey) {
       throw new Error('POLYGON_API_KEY not configured');
