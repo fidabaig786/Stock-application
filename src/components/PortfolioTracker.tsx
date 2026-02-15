@@ -118,7 +118,7 @@ export const PortfolioTracker: React.FC = () => {
       holding: parseInt(formData.holding),
       comments: formData.comments || undefined,
       position_type: formData.position_type,
-      maturity_date: formData.position_type === 'Options' && formData.maturity_date ? formData.maturity_date : undefined
+      maturity_date: formData.maturity_date ? formData.maturity_date : undefined
     };
 
     if (editingId) {
@@ -452,17 +452,15 @@ export const PortfolioTracker: React.FC = () => {
                     required
                   />
                 </div>
-                {formData.position_type === 'Options' && (
-                  <div>
-                    <Label htmlFor="maturity_date">Date of Maturity</Label>
-                    <Input
-                      id="maturity_date"
-                      type="date"
-                      value={formData.maturity_date}
-                      onChange={(e) => setFormData({ ...formData, maturity_date: e.target.value })}
-                    />
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="maturity_date">Date of Maturity</Label>
+                  <Input
+                    id="maturity_date"
+                    type="date"
+                    value={formData.maturity_date}
+                    onChange={(e) => setFormData({ ...formData, maturity_date: e.target.value })}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="index_ticker">Index Ticker</Label>
                   <Input
