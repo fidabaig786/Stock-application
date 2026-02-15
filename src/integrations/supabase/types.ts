@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           current_price: number | null
           id: string
+          next_earning_date: string | null
           ticker: string
           user_id: string
         }
@@ -125,6 +126,7 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           id?: string
+          next_earning_date?: string | null
           ticker: string
           user_id: string
         }
@@ -135,6 +137,7 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           id?: string
+          next_earning_date?: string | null
           ticker?: string
           user_id?: string
         }

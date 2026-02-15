@@ -8,6 +8,7 @@ export interface Stock {
   currentPrice?: number;
   addedAt: string;
   companyUrl?: string;
+  nextEarningDate?: string;
 }
 
 export const useWatchlist = () => {
@@ -45,6 +46,7 @@ export const useWatchlist = () => {
           currentPrice: item.current_price ? Number(item.current_price) : undefined,
           addedAt: item.added_at,
           companyUrl: item.company_url || undefined,
+          nextEarningDate: (item as any).next_earning_date || undefined,
         }));
         setWatchlist(formattedWatchlist);
       }
@@ -55,7 +57,7 @@ export const useWatchlist = () => {
     }
   };
 
-  const addToWatchlist = async (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string) => {
+  const addToWatchlist = async (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string, nextEarningDate?: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -88,7 +90,8 @@ export const useWatchlist = () => {
           ticker: upperTicker,
           asset_type: assetType,
           company_url: companyUrl || null,
-        });
+          next_earning_date: nextEarningDate || null,
+        } as any);
 
       if (error) {
         console.error('Error adding to watchlist:', error);
@@ -103,6 +106,7 @@ export const useWatchlist = () => {
           assetType,
           addedAt: new Date().toISOString(),
           companyUrl: companyUrl || undefined,
+          nextEarningDate: nextEarningDate || undefined,
         };
         setWatchlist(prev => [newStock, ...prev]);
         toast({

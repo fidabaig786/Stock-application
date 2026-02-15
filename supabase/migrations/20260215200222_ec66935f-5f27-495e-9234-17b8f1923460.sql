@@ -1,0 +1,1 @@
+ALTER TABLE public.watchlist_items ADD COLUMN next_earning_date text NULL;
