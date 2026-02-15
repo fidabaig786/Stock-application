@@ -14,7 +14,132 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      portfolio_positions: {
+        Row: {
+          buy_date: string
+          buy_price: number
+          comments: string | null
+          created_at: string
+          current_price: number | null
+          holding: number
+          id: string
+          index_buy_price: number
+          index_current_price: number | null
+          index_ticker: string
+          maturity_date: string | null
+          position_type: string
+          shares: number
+          stop_loss_price: number | null
+          ticker: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buy_date: string
+          buy_price: number
+          comments?: string | null
+          created_at?: string
+          current_price?: number | null
+          holding?: number
+          id?: string
+          index_buy_price?: number
+          index_current_price?: number | null
+          index_ticker?: string
+          maturity_date?: string | null
+          position_type?: string
+          shares: number
+          stop_loss_price?: number | null
+          ticker: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buy_date?: string
+          buy_price?: number
+          comments?: string | null
+          created_at?: string
+          current_price?: number | null
+          holding?: number
+          id?: string
+          index_buy_price?: number
+          index_current_price?: number | null
+          index_ticker?: string
+          maturity_date?: string | null
+          position_type?: string
+          shares?: number
+          stop_loss_price?: number | null
+          ticker?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          cash_balance: number | null
+          created_at: string
+          email: string | null
+          email_notifications_enabled: boolean | null
+          id: string
+          notification_criteria: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cash_balance?: number | null
+          created_at?: string
+          email?: string | null
+          email_notifications_enabled?: boolean | null
+          id?: string
+          notification_criteria?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cash_balance?: number | null
+          created_at?: string
+          email?: string | null
+          email_notifications_enabled?: boolean | null
+          id?: string
+          notification_criteria?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watchlist_items: {
+        Row: {
+          added_at: string
+          asset_type: string
+          company_url: string | null
+          created_at: string
+          current_price: number | null
+          id: string
+          ticker: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          asset_type?: string
+          company_url?: string | null
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          ticker: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          asset_type?: string
+          company_url?: string | null
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          ticker?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
