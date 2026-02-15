@@ -1,4 +1,4 @@
-// v5 - Force redeploy: unified MACD/EMA with stock-analysis
+// v6 - Debug: log raw MACD values for cross-verification
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -121,8 +121,11 @@ async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ cross
     }
 
     const latest = data.results.values[0];
-    const isBullish = latest.value >= latest.signal;
-    console.log(`${ticker} - MACD: ${isBullish ? 'Bullish' : 'Bearish'} (MACD: ${latest.value.toFixed(6)}, Signal: ${latest.signal.toFixed(6)})`);
+    const macdValue = latest.value;
+    const signalValue = latest.signal;
+    const isBullish = macdValue >= signalValue;
+    const latestTs = latest.timestamp ? new Date(latest.timestamp).toISOString().split('T')[0] : 'unknown';
+    console.log(`[MATRIX-MACD] ${ticker} date=${latestTs} MACD=${macdValue} Signal=${signalValue} => ${isBullish ? 'Bullish' : 'Bearish'}`);
     return { crossover: isBullish ? 'Bullish' : 'Bearish' };
   } catch (e) {
     console.error(`Error fetching MACD for ${ticker}:`, e);
@@ -270,7 +273,7 @@ serve(async (req) => {
   try {
     const { tickers } = await req.json();
     const apiKey = Deno.env.get('POLYGON_API_KEY');
-    console.log(`[v5] weekly-technical-matrix invoked at ${new Date().toISOString()}, apiKey present: ${!!apiKey}, tickers: ${JSON.stringify(tickers)}`);
+    console.log(`[v6] weekly-technical-matrix invoked at ${new Date().toISOString()}, apiKey present: ${!!apiKey}, tickers: ${JSON.stringify(tickers)}`);
 
     if (!apiKey) {
       throw new Error('POLYGON_API_KEY not configured');
