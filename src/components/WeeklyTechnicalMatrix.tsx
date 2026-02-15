@@ -103,13 +103,12 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     if (!quadrant || quadrant === 'N/A') return <Badge variant="outline">N/A</Badge>;
     if (quadrant === 'Benchmark') return <Badge variant="outline" className="border-primary text-primary">Benchmark</Badge>;
     
-    const colors: Record<string, string> = {
-      'Leading': 'bg-success/20 text-success border-success/30',
-      'Improving': 'bg-info/20 text-info border-info/30',
-      'Weakening': 'bg-warning/20 text-warning border-warning/30',
-      'Lagging': 'bg-destructive/20 text-destructive border-destructive/30',
-    };
-    return <Badge className={colors[quadrant] || ''}>{quadrant}</Badge>;
+    const isBullish = quadrant === 'Leading' || quadrant === 'Improving';
+    return isBullish ? (
+      <Badge className="bg-success/20 text-success border-success/30">▲ Bullish</Badge>
+    ) : (
+      <Badge className="bg-destructive/20 text-destructive border-destructive/30">▼ Bearish</Badge>
+    );
   };
 
   return (

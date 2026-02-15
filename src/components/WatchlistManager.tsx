@@ -13,7 +13,7 @@ import { MatrixRow } from '@/hooks/useWeeklyMatrix';
 
 interface WatchlistManagerProps {
   watchlist: Stock[];
-  onAdd: (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string) => void;
+  onAdd: (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string, nextEarningDate?: string) => void;
   onRemove: (ticker: string, assetType: 'Stock' | 'Option') => void;
 }
 
@@ -25,6 +25,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
+  const [newEarningDate, setNewEarningDate] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<MatrixRow | null>(null);
   const { fetchMatrix, matrixData } = useWeeklyMatrix();
@@ -46,9 +47,10 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
 
   const handleAdd = () => {
     if (newTicker.trim()) {
-      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined);
+      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined, newEarningDate.trim() || undefined);
       setNewTicker('');
       setNewCompanyUrl('');
+      setNewEarningDate('');
     }
   };
 
@@ -93,7 +95,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <Label htmlFor="company-url">Company Website (Optional)</Label>
                 <Input
                   id="company-url"
@@ -102,6 +104,16 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                   value={newCompanyUrl}
                   onChange={(e) => setNewCompanyUrl(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="earning-date">Next Earning Date (Optional)</Label>
+                <Input
+                  id="earning-date"
+                  type="date"
+                  value={newEarningDate}
+                  onChange={(e) => setNewEarningDate(e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -177,6 +189,11 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
                         Added {new Date(stock.addedAt).toLocaleDateString()}
+                        {stock.nextEarningDate && (
+                          <span className="ml-2 text-warning">
+                            📅 Earnings: {new Date(stock.nextEarningDate).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Badge variant={stock.assetType === 'Stock' ? 'default' : 'secondary'}>
