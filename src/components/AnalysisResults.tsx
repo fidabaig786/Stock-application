@@ -159,7 +159,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                         {Object.entries(result).map(([key, value]) => {
-                          if (['ticker', 'assetType', 'currentPrice', 'passed'].includes(key)) return null;
+                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate'].includes(key)) return null;
                           
                            // Filter indicators based on asset type
                            if (result.assetType === 'Stock') {
@@ -182,6 +182,24 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                             </div>
                           );
                         })}
+                        {result.rsiValue !== null && result.rsiValue !== undefined && (
+                          <div className="flex items-start gap-2">
+                            <Activity className="h-4 w-4 text-info" />
+                            <div>
+                              <p className="font-medium">RSI</p>
+                              <p className="text-muted-foreground text-xs">{result.rsiValue.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        )}
+                        {result.nextEarningDate && (
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                            <div>
+                              <p className="font-medium">Next Earnings</p>
+                              <p className="text-muted-foreground text-xs">{result.nextEarningDate}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -216,7 +234,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                         {Object.entries(result).map(([key, value]) => {
-                          if (['ticker', 'assetType', 'currentPrice', 'passed'].includes(key)) return null;
+                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate'].includes(key)) return null;
 
                            // Filter indicators based on asset type
                            if (result.assetType === 'Stock') {
@@ -237,6 +255,24 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                             </div>
                           );
                         })}
+                        {result.rsiValue !== null && result.rsiValue !== undefined && (
+                          <div className="flex items-start gap-2">
+                            <Activity className="h-4 w-4 text-info" />
+                            <div>
+                              <p className="font-medium">RSI</p>
+                              <p className="text-muted-foreground text-xs">{result.rsiValue.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        )}
+                        {result.nextEarningDate && (
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                            <div>
+                              <p className="font-medium">Next Earnings</p>
+                              <p className="text-muted-foreground text-xs">{result.nextEarningDate}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

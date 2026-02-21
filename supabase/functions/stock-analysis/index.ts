@@ -43,6 +43,7 @@ interface AnalysisRequest {
   watchlist: Array<{
     ticker: string;
     assetType: 'Stock' | 'Option';
+    nextEarningDate?: string | null;
   }>;
   criteria: {
     mrt: boolean;
@@ -53,6 +54,11 @@ interface AnalysisRequest {
     weeklyMacd: boolean;
     burst: boolean;
   };
+  rsiRange?: {
+    min: number | null;
+    max: number | null;
+  } | null;
+  earningsWithinDays?: number | null;
 }
 
 interface AnalysisResult {
@@ -66,6 +72,8 @@ interface AnalysisResult {
   dmiConfirmation: string;
   emaCrossover: string;
   burst: string;
+  rsiValue: number | null;
+  nextEarningDate: string | null;
   passed: boolean;
 }
 
@@ -662,7 +670,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { watchlist, criteria }: AnalysisRequest = await req.json();
+    const { watchlist, criteria, rsiRange, earningsWithinDays }: AnalysisRequest = await req.json();
 
     if (!watchlist || !Array.isArray(watchlist) || watchlist.length === 0) {
       return new Response(
@@ -684,6 +692,13 @@ Deno.serve(async (req) => {
       const { price, historicalData } = await fetchStockData(stock.ticker, polygonApiKey, stock.assetType);
       const { statuses, flags } = await calculateTechnicalIndicators(historicalData, stock.ticker, criteria, polygonApiKey, stock.assetType);
       
+      // Always fetch RSI for range filtering
+      let rsiValue: number | null = null;
+      if (rsiRange && (rsiRange.min !== null || rsiRange.max !== null)) {
+        const rsiResult = await calculateRSI(stock.ticker, polygonApiKey);
+        rsiValue = rsiResult.value || null;
+      }
+
       // Store flags for this ticker
       resultFlags.set(stock.ticker, flags);
       
@@ -699,7 +714,6 @@ Deno.serve(async (req) => {
       Object.entries(criteria).forEach(([key, value]) => {
         if (value) {
           console.log(`Checking ${key}: selected=${value}`);
-          // Only count criteria that would actually be calculated for this asset type
           let shouldCount = false;
           
           if (key === 'mrt' && stock.assetType === 'Option') shouldCount = true;
@@ -730,7 +744,46 @@ Deno.serve(async (req) => {
       console.log(`\n🎯 ${stock.ticker} FINAL RESULT: ${criteriaMetCount}/${totalCriteriaChecked} criteria met`);
       
       // A stock passes only if it meets ALL selected criteria (intersection logic)
-      const passed = totalCriteriaChecked > 0 ? (criteriaMetCount === totalCriteriaChecked) : false;
+      let passed = totalCriteriaChecked > 0 ? (criteriaMetCount === totalCriteriaChecked) : true;
+
+      // Apply RSI range filter
+      if (passed && rsiRange && (rsiRange.min !== null || rsiRange.max !== null)) {
+        if (rsiValue === null) {
+          passed = false;
+          console.log(`❌ ${stock.ticker} filtered out: no RSI data`);
+        } else {
+          if (rsiRange.min !== null && rsiValue < rsiRange.min) {
+            passed = false;
+            console.log(`❌ ${stock.ticker} filtered out: RSI ${rsiValue.toFixed(2)} < min ${rsiRange.min}`);
+          }
+          if (rsiRange.max !== null && rsiValue > rsiRange.max) {
+            passed = false;
+            console.log(`❌ ${stock.ticker} filtered out: RSI ${rsiValue.toFixed(2)} > max ${rsiRange.max}`);
+          }
+        }
+      }
+
+      // Apply earnings date filter
+      const nextEarningDate = stock.nextEarningDate || null;
+      if (passed && earningsWithinDays !== null && earningsWithinDays !== undefined) {
+        if (!nextEarningDate) {
+          passed = false;
+          console.log(`❌ ${stock.ticker} filtered out: no earnings date set`);
+        } else {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const earningDate = new Date(nextEarningDate);
+          earningDate.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil((earningDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays < 0 || diffDays > earningsWithinDays) {
+            passed = false;
+            console.log(`❌ ${stock.ticker} filtered out: earnings in ${diffDays} days, limit is ${earningsWithinDays}`);
+          } else {
+            console.log(`✅ ${stock.ticker} earnings in ${diffDays} days, within ${earningsWithinDays} day limit`);
+          }
+        }
+      }
+
       console.log(`🎯 ${stock.ticker} PASSED: ${passed}\n`);
   
       analysisResults.push({
@@ -744,6 +797,8 @@ Deno.serve(async (req) => {
         dmiConfirmation: statuses.dmiConfirmation,
         emaCrossover: statuses.emaCrossover,
         burst: statuses.burst,
+        rsiValue: rsiValue,
+        nextEarningDate: nextEarningDate,
         passed
       });
     }
