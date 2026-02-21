@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,7 +34,6 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
   const { user } = useAuth();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const widgetContainerRef = useRef<HTMLDivElement>(null);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
@@ -43,43 +42,18 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
     setIsOpen(true);
   };
 
-  useEffect(() => {
-    if (!isOpen || !selectedTicker || !widgetContainerRef.current) return;
-
-    const container = widgetContainerRef.current;
-    container.innerHTML = '';
-
-    // Create the inner widget div first
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = '100%';
-    widgetDiv.style.width = '100%';
-    container.appendChild(widgetDiv);
-
-    // Create and append the script
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: selectedTicker,
+  const getTradingViewWidgetUrl = (symbol: string) => {
+    const params = new URLSearchParams({
+      symbol,
       interval: 'W',
-      timezone: 'Etc/UTC',
       theme: 'dark',
       style: '1',
       locale: 'en',
-      allow_symbol_change: true,
-      hide_side_toolbar: false,
-      calendar: false,
-      support_host: 'https://www.tradingview.com',
+      allow_symbol_change: 'true',
+      hide_side_toolbar: '0',
     });
-    container.appendChild(script);
-
-    return () => {
-      container.innerHTML = '';
-    };
-  }, [isOpen, selectedTicker]);
+    return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -87,12 +61,15 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
         <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle className="text-sm truncate">{selectedTicker}</DialogTitle>
+            <DialogDescription className="sr-only">TradingView chart for {selectedTicker}</DialogDescription>
           </DialogHeader>
-          <div
-            ref={widgetContainerRef}
-            className="tradingview-widget-container flex-1 min-h-0"
-            style={{ width: '100%', height: '100%' }}
-          />
+          {selectedTicker && (
+            <iframe
+              src={getTradingViewWidgetUrl(selectedTicker)}
+              className="flex-1 min-h-0 w-full border-0 rounded-b-lg"
+              allowFullScreen
+            />
+          )}
         </DialogContent>
       </Dialog>
 
