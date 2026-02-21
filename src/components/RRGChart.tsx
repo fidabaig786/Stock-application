@@ -137,11 +137,11 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
     const padX = Math.max((maxX - minX) * 0.1, 1);
     const padY = Math.max((maxY - minY) * 0.1, 1);
     const xDomain: [number, number] = [
-      Math.floor((Math.min(minX, 100) - padX) * 10) / 10,
+      90,
       Math.ceil((Math.max(maxX, 100) + padX) * 10) / 10,
     ];
     const yDomain: [number, number] = [
-      Math.floor((Math.min(minY, 100) - padY) * 10) / 10,
+      90,
       Math.ceil((Math.max(maxY, 100) + padY) * 10) / 10,
     ];
 
