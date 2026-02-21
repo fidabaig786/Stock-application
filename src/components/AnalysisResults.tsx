@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,18 +32,11 @@ const getStatusBadge = (status: string) => {
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const { user } = useAuth();
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [companyUrl, setCompanyUrl] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
   const handleTickerClick = async (ticker: string, assetType: string) => {
     if (!user) return;
-    
-    setSelectedTicker(ticker);
-    setIsDialogOpen(true);
     
     try {
       const { data, error } = await supabase
@@ -57,43 +48,16 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
         .maybeSingle();
 
       if (error) throw error;
-      setCompanyUrl(data?.company_url || null);
+      if (data?.company_url) {
+        window.open(data.company_url, '_blank');
+      }
     } catch (error) {
       console.error('Error fetching company URL:', error);
-      setCompanyUrl(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedTicker} - Company Information</DialogTitle>
-            <DialogDescription>
-              View company details and analysis
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {companyUrl ? (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Company Link:</p>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => window.open(companyUrl, '_blank')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Company Page
-                </Button>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No company URL found for this ticker.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-success shadow-trading">
