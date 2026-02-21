@@ -43,6 +43,7 @@ export interface AnalysisResult {
   rsiValue: number | null;
   nextEarningDate: string | null;
   passed: boolean;
+  companyUrl?: string;
 }
 
 export const TradingDashboard: React.FC = () => {
@@ -127,7 +128,12 @@ export const TradingDashboard: React.FC = () => {
         throw error;
       }
 
-      setAnalysisResults(data.results);
+      // Enrich results with companyUrl from watchlist
+      const enrichedResults = data.results.map((r: AnalysisResult) => {
+        const watchlistItem = filteredWatchlist.find(w => w.ticker === r.ticker);
+        return { ...r, companyUrl: watchlistItem?.companyUrl };
+      });
+      setAnalysisResults(enrichedResults);
       
       const passedCount = data.results.filter((r: AnalysisResult) => r.passed).length;
       toast({
