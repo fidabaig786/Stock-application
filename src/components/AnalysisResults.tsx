@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +33,8 @@ const getStatusBadge = (status: string) => {
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const { user } = useAuth();
+  const [companyUrl, setCompanyUrl] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
@@ -49,7 +52,8 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
       if (error) throw error;
       if (data?.company_url) {
-        window.open(data.company_url, '_blank');
+        setCompanyUrl(data.company_url);
+        setIsOpen(true);
       }
     } catch (error) {
       console.error('Error fetching company URL:', error);
@@ -58,7 +62,23 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
   return (
     <div className="space-y-6">
-      {/* Summary Stats */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="text-sm truncate">{companyUrl}</DialogTitle>
+          </DialogHeader>
+          {companyUrl && (
+            <iframe
+              src={companyUrl}
+              className="w-full flex-1 border-0 rounded-b-lg"
+              style={{ height: 'calc(85vh - 60px)' }}
+              title="Company Page"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-success shadow-trading">
           <CardContent className="p-6">
