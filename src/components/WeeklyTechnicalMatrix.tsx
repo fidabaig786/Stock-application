@@ -192,7 +192,9 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         {getSignalBadge(row.macdSignal, 'macd')}
                       </TableCell>
                       <TableCell className="text-center">
-                        {getRRGBadge(row.rrgQuadrant)}
+                        {row.ticker === 'SPY'
+                          ? getRRGBadge('Benchmark')
+                          : getRRGBadge(metadata[row.ticker]?.sectorQuadrant ?? row.rrgQuadrant)}
                       </TableCell>
                       <TableCell className="text-center">
                         {(() => {
