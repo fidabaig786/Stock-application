@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, BarChart3, Pencil } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
 import { useWeeklyMatrix } from '@/hooks/useWeeklyMatrix';
 import { WeeklyChartModal } from './WeeklyChartModal';
@@ -15,12 +15,14 @@ interface WatchlistManagerProps {
   watchlist: Stock[];
   onAdd: (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string, nextEarningDate?: string) => void;
   onRemove: (ticker: string, assetType: 'Stock' | 'Option') => void;
+  onUpdateEarningDate: (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => void;
 }
 
 export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   watchlist,
   onAdd,
   onRemove,
+  onUpdateEarningDate,
 }) => {
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
@@ -194,6 +196,19 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                             📅 Earnings: {new Date(stock.nextEarningDate).toLocaleDateString()}
                           </span>
                         )}
+                        <span className="ml-2 inline-flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={stock.nextEarningDate || ''}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              onUpdateEarningDate(stock.ticker, stock.assetType, e.target.value || null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-6 text-xs bg-transparent border border-border rounded px-1 w-32"
+                            title="Edit next earning date"
+                          />
+                        </span>
                       </div>
                     </div>
                     <Badge variant={stock.assetType === 'Stock' ? 'default' : 'secondary'}>

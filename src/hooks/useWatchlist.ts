@@ -158,6 +158,34 @@ export const useWatchlist = () => {
     }
   };
 
+  const updateEarningDate = async (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('watchlist_items')
+        .update({ next_earning_date: newDate } as any)
+        .eq('user_id', user.id)
+        .eq('ticker', ticker)
+        .eq('asset_type', assetType);
+
+      if (error) {
+        console.error('Error updating earning date:', error);
+        toast({ title: "Error", description: "Failed to update earning date", variant: "destructive" });
+      } else {
+        setWatchlist(prev => prev.map(s =>
+          s.ticker === ticker && s.assetType === assetType
+            ? { ...s, nextEarningDate: newDate || undefined }
+            : s
+        ));
+        toast({ title: "Updated", description: `Earning date updated for ${ticker}` });
+      }
+    } catch (error) {
+      console.error('Error updating earning date:', error);
+    }
+  };
+
   useEffect(() => {
     loadWatchlist();
 
@@ -174,6 +202,7 @@ export const useWatchlist = () => {
     isLoading,
     addToWatchlist,
     removeFromWatchlist,
+    updateEarningDate,
     refreshWatchlist: loadWatchlist,
   };
 };

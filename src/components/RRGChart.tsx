@@ -102,7 +102,7 @@ const SquareDot = (props: any) => {
 };
 
 export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onTickerClick }) => {
-  const { trailPoints, domain } = useMemo(() => {
+  const { trailPoints, xDomain, yDomain } = useMemo(() => {
     const nonSPY = data.filter(r => r.ticker !== 'SPY' && r.rrgTrail && r.rrgTrail.length > 0);
     const colorMap: Record<string, string> = {};
     nonSPY.forEach((r, i) => {
@@ -110,7 +110,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
     });
 
     const points: TrailDataPoint[] = [];
-    let minX = 98, maxX = 102, minY = 98, maxY = 102;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
     nonSPY.forEach(row => {
       const trail = row.rrgTrail;
@@ -133,15 +133,22 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
       });
     });
 
-    // Pad domain symmetrically around 100
-    const pad = 1;
-    const extent = Math.max(maxX - 100, 100 - minX, maxY - 100, 100 - minY, 2) + pad;
-    const lo = Math.floor(100 - extent);
-    const hi = Math.ceil(100 + extent);
+    // Use independent X and Y ranges with padding, ensuring 100 is always included
+    const padX = Math.max((maxX - minX) * 0.1, 1);
+    const padY = Math.max((maxY - minY) * 0.1, 1);
+    const xDomain: [number, number] = [
+      Math.floor((Math.min(minX, 100) - padX) * 10) / 10,
+      Math.ceil((Math.max(maxX, 100) + padX) * 10) / 10,
+    ];
+    const yDomain: [number, number] = [
+      Math.floor((Math.min(minY, 100) - padY) * 10) / 10,
+      Math.ceil((Math.max(maxY, 100) + padY) * 10) / 10,
+    ];
 
     return {
       trailPoints: points,
-      domain: [lo, hi] as [number, number],
+      xDomain,
+      yDomain,
       colorMap,
     };
   }, [data]);
@@ -169,10 +176,10 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 30 }}>
           {/* Quadrant backgrounds */}
-          <ReferenceArea x1={100} x2={domain[1]} y1={100} y2={domain[1]} fill="hsl(130, 50%, 90%)" fillOpacity={0.5} />
-          <ReferenceArea x1={100} x2={domain[1]} y1={domain[0]} y2={100} fill="hsl(45, 80%, 90%)" fillOpacity={0.5} />
-          <ReferenceArea x1={domain[0]} x2={100} y1={domain[0]} y2={100} fill="hsl(0, 60%, 92%)" fillOpacity={0.5} />
-          <ReferenceArea x1={domain[0]} x2={100} y1={100} y2={domain[1]} fill="hsl(210, 60%, 92%)" fillOpacity={0.5} />
+          <ReferenceArea x1={100} x2={xDomain[1]} y1={100} y2={yDomain[1]} fill="hsl(130, 50%, 90%)" fillOpacity={0.5} />
+          <ReferenceArea x1={100} x2={xDomain[1]} y1={yDomain[0]} y2={100} fill="hsl(45, 80%, 90%)" fillOpacity={0.5} />
+          <ReferenceArea x1={xDomain[0]} x2={100} y1={yDomain[0]} y2={100} fill="hsl(0, 60%, 92%)" fillOpacity={0.5} />
+          <ReferenceArea x1={xDomain[0]} x2={100} y1={100} y2={yDomain[1]} fill="hsl(210, 60%, 92%)" fillOpacity={0.5} />
 
           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
           <ReferenceLine x={100} stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} />
@@ -181,7 +188,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
           <XAxis
             type="number"
             dataKey="x"
-            domain={domain}
+            domain={xDomain}
             tick={{ fontSize: 11 }}
             tickLine={false}
           >
@@ -190,7 +197,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
           <YAxis
             type="number"
             dataKey="y"
-            domain={domain}
+            domain={yDomain}
             tick={{ fontSize: 11 }}
             tickLine={false}
           >
