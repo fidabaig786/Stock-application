@@ -99,37 +99,15 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     );
   };
 
-  const getStockSignalBadge = (ema: string | null, macd: string | null) => {
-    if (!ema && !macd) return <Badge variant="outline">N/A</Badge>;
-    const emaBull = ema === 'Bullish';
-    const macdBull = macd === 'Bullish';
-    if (emaBull && macdBull) {
-      return <Badge className="bg-success/20 text-success border-success/30">▲ Bullish</Badge>;
-    }
-    if (!emaBull && !macdBull) {
-      return <Badge className="bg-destructive/20 text-destructive border-destructive/30">▼ Bearish</Badge>;
-    }
-    return <Badge className="bg-warning/20 text-warning border-warning/30">— Mixed</Badge>;
-  };
-
-  const getSectorBadge = (meta: ReturnType<typeof useStockMetadata>['metadata'][string] | undefined) => {
-    if (!meta?.sectorETF) return <span className="text-muted-foreground text-xs">—</span>;
-    const quadrant = meta.sectorQuadrant;
-    const isGreen = meta.sectorColor === 'green';
-    return (
-      <div className="flex items-center justify-center gap-1.5">
-        <Circle
-          className={`h-3 w-3 fill-current ${isGreen ? 'text-success' : 'text-destructive'}`}
-        />
-        <span className="text-xs">
-          <span className="text-muted-foreground">{meta.sectorETF}</span>
-          {quadrant && quadrant !== 'N/A' && (
-            <span className={`ml-1 ${isGreen ? 'text-success' : 'text-destructive'}`}>
-              {quadrant}
-            </span>
-          )}
-        </span>
-      </div>
+  const getRRGBadge = (quadrant: string | null) => {
+    if (!quadrant || quadrant === 'N/A') return <Badge variant="outline">N/A</Badge>;
+    if (quadrant === 'Benchmark') return <Badge variant="outline" className="border-primary text-primary">Benchmark</Badge>;
+    
+    const isBullish = quadrant === 'Leading' || quadrant === 'Improving';
+    return isBullish ? (
+      <Badge className="bg-success/20 text-success border-success/30">▲ Bullish</Badge>
+    ) : (
+      <Badge className="bg-destructive/20 text-destructive border-destructive/30">▼ Bearish</Badge>
     );
   };
 
@@ -175,8 +153,8 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                     <TableHead className="text-center">RSI (14)</TableHead>
                     <TableHead className="text-center">EMA 8×21</TableHead>
                      <TableHead className="text-center">MACD</TableHead>
-                     <TableHead className="text-center">Stock Signal</TableHead>
-                     <TableHead className="text-center">Sector Status</TableHead>
+                     <TableHead className="text-center">RRG Quadrant</TableHead>
+                     <TableHead className="text-center">Sector</TableHead>
                     <TableHead className="text-center w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -214,10 +192,23 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                         {getSignalBadge(row.macdSignal, 'macd')}
                       </TableCell>
                       <TableCell className="text-center">
-                        {getStockSignalBadge(row.emaCrossover, row.macdSignal)}
+                        {getRRGBadge(row.rrgQuadrant)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {getSectorBadge(metadata[row.ticker])}
+                        {(() => {
+                          const meta = metadata[row.ticker];
+                          if (!meta?.sectorColor) return <span className="text-muted-foreground text-xs">—</span>;
+                          return (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Circle
+                                className={`h-3 w-3 fill-current ${
+                                  meta.sectorColor === 'green' ? 'text-success' : 'text-destructive'
+                                }`}
+                              />
+                              <span className="text-xs text-muted-foreground">{meta.sectorETF}</span>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-center">
                         {row.ticker !== 'SPY' && (
