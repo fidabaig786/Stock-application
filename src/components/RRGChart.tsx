@@ -189,6 +189,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
             type="number"
             dataKey="x"
             domain={xDomain}
+            allowDataOverflow={true}
             tick={{ fontSize: 11 }}
             tickLine={false}
           >
@@ -198,6 +199,7 @@ export const RRGChart: React.FC<RRGChartProps> = ({ data, highlightedTicker, onT
             type="number"
             dataKey="y"
             domain={yDomain}
+            allowDataOverflow={true}
             tick={{ fontSize: 11 }}
             tickLine={false}
           >
