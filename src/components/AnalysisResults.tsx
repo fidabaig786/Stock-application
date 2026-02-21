@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AnalysisResultsProps {
@@ -33,49 +32,64 @@ const getStatusBadge = (status: string) => {
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const { user } = useAuth();
-  const [companyUrl, setCompanyUrl] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const widgetContainerRef = useRef<HTMLDivElement>(null);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
-  const handleTickerClick = async (ticker: string, assetType: string) => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('watchlist_items')
-        .select('company_url')
-        .eq('user_id', user.id)
-        .eq('ticker', ticker)
-        .eq('asset_type', assetType)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (data?.company_url) {
-        setCompanyUrl(data.company_url);
-        setIsOpen(true);
-      }
-    } catch (error) {
-      console.error('Error fetching company URL:', error);
-    }
+  const handleTickerClick = (ticker: string) => {
+    setSelectedTicker(ticker);
+    setIsOpen(true);
   };
+
+  useEffect(() => {
+    if (!isOpen || !selectedTicker || !widgetContainerRef.current) return;
+
+    const container = widgetContainerRef.current;
+    container.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: selectedTicker,
+      interval: 'W',
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      allow_symbol_change: true,
+      support_host: 'https://www.tradingview.com',
+    });
+
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.height = '100%';
+    widgetDiv.style.width = '100%';
+
+    container.appendChild(widgetDiv);
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [isOpen, selectedTicker]);
 
   return (
     <div className="space-y-6">
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0">
           <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="text-sm truncate">{companyUrl}</DialogTitle>
+            <DialogTitle className="text-sm truncate">{selectedTicker}</DialogTitle>
           </DialogHeader>
-          {companyUrl && (
-            <iframe
-              src={companyUrl}
-              className="w-full flex-1 border-0 rounded-b-lg"
-              style={{ height: 'calc(85vh - 60px)' }}
-              title="Company Page"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-            />
-          )}
+          <div
+            ref={widgetContainerRef}
+            className="tradingview-widget-container w-full flex-1 rounded-b-lg"
+            style={{ height: 'calc(85vh - 60px)' }}
+          />
         </DialogContent>
       </Dialog>
 
@@ -139,7 +153,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <button 
-                            onClick={() => handleTickerClick(result.ticker, result.assetType)}
+                            onClick={() => handleTickerClick(result.ticker)}
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
                           >
                             {result.ticker}
@@ -216,7 +230,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <button 
-                            onClick={() => handleTickerClick(result.ticker, result.assetType)}
+                            onClick={() => handleTickerClick(result.ticker)}
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
                           >
                             {result.ticker}
