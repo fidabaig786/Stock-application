@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,47 +31,17 @@ const getStatusBadge = (status: string) => {
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const { user } = useAuth();
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
-  const handleTickerClick = (ticker: string) => {
-    setSelectedTicker(ticker);
-    setIsOpen(true);
-  };
-
-  const getTradingViewWidgetUrl = (symbol: string) => {
-    const params = new URLSearchParams({
-      symbol,
-      interval: 'W',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      allow_symbol_change: 'true',
-      hide_side_toolbar: '0',
-    });
-    return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+  const handleTickerClick = (result: AnalysisResult) => {
+    if (result.companyUrl) {
+      window.open(result.companyUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
     <div className="space-y-6">
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
-          <DialogHeader className="p-4 pb-2">
-            <DialogTitle className="text-sm truncate">{selectedTicker}</DialogTitle>
-            <DialogDescription className="sr-only">TradingView chart for {selectedTicker}</DialogDescription>
-          </DialogHeader>
-          {selectedTicker && (
-            <iframe
-              src={getTradingViewWidgetUrl(selectedTicker)}
-              className="flex-1 min-h-0 w-full border-0 rounded-b-lg"
-              allowFullScreen
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-success shadow-trading">
           <CardContent className="p-6">
@@ -132,13 +101,17 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                     <div key={result.ticker} className="border rounded-lg p-4 bg-card/50">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => handleTickerClick(result.ticker)}
-                            className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
-                          >
-                            {result.ticker}
-                            <ExternalLink className="h-4 w-4" />
-                          </button>
+                          {result.companyUrl ? (
+                            <button 
+                              onClick={() => handleTickerClick(result)}
+                              className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
+                            >
+                              {result.ticker}
+                              <ExternalLink className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <span className="text-xl font-bold">{result.ticker}</span>
+                          )}
                           <Badge variant={result.assetType === 'Stock' ? 'default' : 'secondary'}>
                             {result.assetType}
                           </Badge>
@@ -153,14 +126,11 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                         {Object.entries(result).map(([key, value]) => {
-                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate'].includes(key)) return null;
+                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate', 'companyUrl'].includes(key)) return null;
                           
-                           // Filter indicators based on asset type
                            if (result.assetType === 'Stock') {
-                             // Only show EMA Crossover, Weekly MACD, and Burst for stocks
                              if (!['emaCrossover', 'weeklyMacd', 'burst'].includes(key)) return null;
                            } else {
-                             // For options, exclude burst (show mrt and other option indicators)
                              if (key === 'burst') return null;
                            }
                           
@@ -209,13 +179,17 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                     <div key={result.ticker} className="border rounded-lg p-4 bg-card/30">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => handleTickerClick(result.ticker)}
-                            className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
-                          >
-                            {result.ticker}
-                            <ExternalLink className="h-4 w-4" />
-                          </button>
+                          {result.companyUrl ? (
+                            <button 
+                              onClick={() => handleTickerClick(result)}
+                              className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
+                            >
+                              {result.ticker}
+                              <ExternalLink className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <span className="text-xl font-bold">{result.ticker}</span>
+                          )}
                           <Badge variant={result.assetType === 'Stock' ? 'outline' : 'secondary'}>
                             {result.assetType}
                           </Badge>
@@ -228,9 +202,8 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                         {Object.entries(result).map(([key, value]) => {
-                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate'].includes(key)) return null;
+                          if (['ticker', 'assetType', 'currentPrice', 'passed', 'rsiValue', 'nextEarningDate', 'companyUrl'].includes(key)) return null;
 
-                           // Filter indicators based on asset type
                            if (result.assetType === 'Stock') {
                              if (!['emaCrossover', 'weeklyMacd', 'burst'].includes(key)) return null;
                            } else {
