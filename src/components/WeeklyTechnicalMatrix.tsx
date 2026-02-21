@@ -248,7 +248,8 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
         <WeeklyChartModal
           open={chartOpen}
           onOpenChange={setChartOpen}
-          row={selectedRow}
+          ticker={selectedRow.ticker}
+          currentPrice={selectedRow.currentPrice}
         />
       )}
 
