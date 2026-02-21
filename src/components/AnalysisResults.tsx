@@ -49,6 +49,14 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
     const container = widgetContainerRef.current;
     container.innerHTML = '';
 
+    // Create the inner widget div first
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.height = '100%';
+    widgetDiv.style.width = '100%';
+    container.appendChild(widgetDiv);
+
+    // Create and append the script
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
     script.type = 'text/javascript';
@@ -62,15 +70,10 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
       style: '1',
       locale: 'en',
       allow_symbol_change: true,
+      hide_side_toolbar: false,
+      calendar: false,
       support_host: 'https://www.tradingview.com',
     });
-
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = '100%';
-    widgetDiv.style.width = '100%';
-
-    container.appendChild(widgetDiv);
     container.appendChild(script);
 
     return () => {
@@ -81,14 +84,14 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
   return (
     <div className="space-y-6">
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0">
-          <DialogHeader className="p-4 pb-0">
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
+          <DialogHeader className="p-4 pb-2">
             <DialogTitle className="text-sm truncate">{selectedTicker}</DialogTitle>
           </DialogHeader>
           <div
             ref={widgetContainerRef}
-            className="tradingview-widget-container w-full flex-1 rounded-b-lg"
-            style={{ height: 'calc(85vh - 60px)' }}
+            className="tradingview-widget-container flex-1 min-h-0"
+            style={{ width: '100%', height: '100%' }}
           />
         </DialogContent>
       </Dialog>
