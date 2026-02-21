@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { TrendingUp, Search, BarChart3, ShieldCheck, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,6 +40,8 @@ export interface AnalysisResult {
   dmiConfirmation: string;
   emaCrossover: string;
   burst: string;
+  rsiValue: number | null;
+  nextEarningDate: string | null;
   passed: boolean;
 }
 
@@ -55,6 +58,9 @@ export const TradingDashboard: React.FC = () => {
     weeklyMacd: true,
     burst: false,
   });
+  const [rsiMin, setRsiMin] = useState<string>('');
+  const [rsiMax, setRsiMax] = useState<string>('');
+  const [earningsWithinDays, setEarningsWithinDays] = useState<string>('');
 
   // Update criteria when asset type changes
   React.useEffect(() => {
@@ -105,8 +111,14 @@ export const TradingDashboard: React.FC = () => {
           watchlist: filteredWatchlist.map(stock => ({
             ticker: stock.ticker,
             assetType: stock.assetType,
+            nextEarningDate: stock.nextEarningDate || null,
           })),
           criteria,
+          rsiRange: rsiMin || rsiMax ? {
+            min: rsiMin ? parseFloat(rsiMin) : null,
+            max: rsiMax ? parseFloat(rsiMax) : null,
+          } : null,
+          earningsWithinDays: earningsWithinDays ? parseInt(earningsWithinDays) : null,
         },
       });
 
@@ -349,6 +361,50 @@ export const TradingDashboard: React.FC = () => {
                        </>
                      )}
                    </div>
+
+                  {/* Additional Filters */}
+                  <div className="border-t pt-4 mt-4 space-y-4">
+                    <h4 className="text-sm font-semibold text-muted-foreground">Additional Filters</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">RSI Range Filter</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Min (e.g. 30)"
+                            value={rsiMin}
+                            onChange={(e) => setRsiMin(e.target.value)}
+                            className="w-full"
+                            min="0"
+                            max="100"
+                          />
+                          <span className="text-muted-foreground">–</span>
+                          <Input
+                            type="number"
+                            placeholder="Max (e.g. 70)"
+                            value={rsiMax}
+                            onChange={(e) => setRsiMax(e.target.value)}
+                            className="w-full"
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Only show tickers with RSI in this range</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Earnings Within (Days)</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 2"
+                          value={earningsWithinDays}
+                          onChange={(e) => setEarningsWithinDays(e.target.value)}
+                          className="w-full"
+                          min="0"
+                        />
+                        <p className="text-xs text-muted-foreground">Only show tickers with earnings in the next X days</p>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="flex justify-center pt-4">
                     <Button 
