@@ -14,7 +14,7 @@ import {
 import { Plus, RefreshCw, X, BarChart3, Loader2, Circle } from 'lucide-react';
 import { useWeeklyMatrix, MatrixRow } from '@/hooks/useWeeklyMatrix';
 import { useStockMetadata } from '@/hooks/useStockMetadata';
-import { WeeklyChartModal } from './WeeklyChartModal';
+
 import { CompanyNews } from './CompanyNews';
 
 export const WeeklyTechnicalMatrix: React.FC = () => {
@@ -29,8 +29,6 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
     return ['SPY'];
   });
   const [newTicker, setNewTicker] = useState('');
-  const [selectedRow, setSelectedRow] = useState<MatrixRow | null>(null);
-  const [chartOpen, setChartOpen] = useState(false);
   const [selectedNewsTicker, setSelectedNewsTicker] = useState<string | null>(null);
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
 
@@ -75,8 +73,6 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
   };
 
   const handleRowClick = (row: MatrixRow) => {
-    setSelectedRow(row);
-    setChartOpen(true);
     setSelectedNewsTicker(row.ticker);
     setHighlightedTicker(row.ticker);
     fetchNews(row.ticker);
@@ -243,15 +239,7 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Chart Modal */}
-      {selectedRow && (
-        <WeeklyChartModal
-          open={chartOpen}
-          onOpenChange={setChartOpen}
-          ticker={selectedRow.ticker}
-          currentPrice={selectedRow.currentPrice}
-        />
-      )}
+
 
       {/* Company News */}
       {selectedNewsTicker && (

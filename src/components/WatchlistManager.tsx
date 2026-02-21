@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink, BarChart3, Pencil } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
-import { WeeklyChartModal } from './WeeklyChartModal';
 
 interface WatchlistManagerProps {
   watchlist: Stock[];
@@ -162,15 +161,6 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                         ) : (
                           <h3 className="font-semibold text-lg">{stock.ticker}</h3>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-primary hover:text-primary/80"
-                          onClick={() => handleOpenChart(stock.ticker)}
-                          title={`Open TradingView chart for ${stock.ticker}`}
-                        >
-                          <BarChart3 className="h-4 w-4" />
-                        </Button>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
@@ -220,14 +210,6 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
         </CardContent>
       </Card>
 
-      {/* TradingView Chart Modal */}
-      {chartTicker && (
-        <WeeklyChartModal
-          open={chartOpen}
-          onOpenChange={setChartOpen}
-          ticker={chartTicker}
-        />
-      )}
     </div>
   );
 };
