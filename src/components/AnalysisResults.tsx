@@ -36,15 +36,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
   const handleTickerClick = (result: AnalysisResult) => {
     if (result.companyUrl) {
-      const width = Math.round(window.screen.width * 0.9);
-      const height = Math.round(window.screen.height * 0.85);
-      const left = Math.round((window.screen.width - width) / 2);
-      const top = Math.round((window.screen.height - height) / 2);
-      window.open(
-        result.companyUrl,
-        `chart_${result.ticker}`,
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      );
+      window.open(result.companyUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
