@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,38 +31,25 @@ const getStatusBadge = (status: string) => {
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const { user } = useAuth();
-  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
   const handleTickerClick = (result: AnalysisResult) => {
     if (result.companyUrl) {
-      setSelectedUrl(result.companyUrl);
-      setSelectedTicker(result.ticker);
-      setIsOpen(true);
+      const width = Math.round(window.screen.width * 0.9);
+      const height = Math.round(window.screen.height * 0.85);
+      const left = Math.round((window.screen.width - width) / 2);
+      const top = Math.round((window.screen.height - height) / 2);
+      window.open(
+        result.companyUrl,
+        `chart_${result.ticker}`,
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
     }
   };
 
   return (
     <div className="space-y-6">
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
-          <DialogHeader className="p-4 pb-2">
-            <DialogTitle className="text-sm truncate">{selectedTicker}</DialogTitle>
-            <DialogDescription className="sr-only">Chart for {selectedTicker}</DialogDescription>
-          </DialogHeader>
-          {selectedUrl && (
-            <iframe
-              src={selectedUrl}
-              className="flex-1 min-h-0 w-full border-0 rounded-b-lg"
-              allowFullScreen
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-success shadow-trading">
           <CardContent className="p-6">
