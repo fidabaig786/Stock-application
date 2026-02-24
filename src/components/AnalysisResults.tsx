@@ -44,7 +44,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
 
   const getWidgetUrl = (ticker: string) => {
     const symbol = encodeURIComponent(ticker);
-    return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=W&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&showpopupbutton=1&locale=en`;
+    return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&range=12M`;
   };
 
   return (
