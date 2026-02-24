@@ -52,7 +52,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
       <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setSelectedTicker(null); }}>
         <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-4 pb-2 shrink-0">
-            <DialogTitle className="text-sm">{selectedTicker} — Weekly Chart</DialogTitle>
+            <DialogTitle className="text-sm">{selectedTicker} — Daily Chart</DialogTitle>
             <DialogDescription className="sr-only">TradingView chart for {selectedTicker}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 w-full">
