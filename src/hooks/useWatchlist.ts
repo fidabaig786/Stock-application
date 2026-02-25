@@ -158,6 +158,34 @@ export const useWatchlist = () => {
     }
   };
 
+  const updateCompanyUrl = async (ticker: string, assetType: 'Stock' | 'Option', newUrl: string | null) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('watchlist_items')
+        .update({ company_url: newUrl })
+        .eq('user_id', user.id)
+        .eq('ticker', ticker)
+        .eq('asset_type', assetType);
+
+      if (error) {
+        console.error('Error updating company URL:', error);
+        toast({ title: "Error", description: "Failed to update company URL", variant: "destructive" });
+      } else {
+        setWatchlist(prev => prev.map(s =>
+          s.ticker === ticker && s.assetType === assetType
+            ? { ...s, companyUrl: newUrl || undefined }
+            : s
+        ));
+        toast({ title: "Updated", description: `Company URL updated for ${ticker}` });
+      }
+    } catch (error) {
+      console.error('Error updating company URL:', error);
+    }
+  };
+
   const updateEarningDate = async (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -202,6 +230,7 @@ export const useWatchlist = () => {
     isLoading,
     addToWatchlist,
     removeFromWatchlist,
+    updateCompanyUrl,
     updateEarningDate,
     refreshWatchlist: loadWatchlist,
   };

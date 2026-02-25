@@ -5,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil, Link } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface WatchlistManagerProps {
   watchlist: Stock[];
   onAdd: (ticker: string, assetType: 'Stock' | 'Option', companyUrl?: string, nextEarningDate?: string) => void;
   onRemove: (ticker: string, assetType: 'Stock' | 'Option') => void;
   onUpdateEarningDate: (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => void;
+  onUpdateCompanyUrl: (ticker: string, assetType: 'Stock' | 'Option', newUrl: string | null) => void;
 }
 
 export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
@@ -20,6 +22,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   onAdd,
   onRemove,
   onUpdateEarningDate,
+  onUpdateCompanyUrl,
 }) => {
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
@@ -27,6 +30,9 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   const [newEarningDate, setNewEarningDate] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
   const [chartTicker, setChartTicker] = useState<string | null>(null);
+  const [editUrlTicker, setEditUrlTicker] = useState<string | null>(null);
+  const [editUrlAssetType, setEditUrlAssetType] = useState<'Stock' | 'Option'>('Stock');
+  const [editUrlValue, setEditUrlValue] = useState('');
 
   const handleOpenChart = (ticker: string) => {
     setChartTicker(ticker);
@@ -161,6 +167,20 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                         ) : (
                           <h3 className="font-semibold text-lg">{stock.ticker}</h3>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          title="Edit company URL"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditUrlTicker(stock.ticker);
+                            setEditUrlAssetType(stock.assetType);
+                            setEditUrlValue(stock.companyUrl || '');
+                          }}
+                        >
+                          <Link className="h-3 w-3 text-muted-foreground" />
+                        </Button>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
@@ -210,6 +230,40 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
         </CardContent>
       </Card>
 
+      {/* Edit URL Dialog */}
+      <Dialog open={!!editUrlTicker} onOpenChange={(open) => { if (!open) setEditUrlTicker(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Company URL for {editUrlTicker}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div>
+              <Label htmlFor="edit-url">Company Website URL</Label>
+              <Input
+                id="edit-url"
+                type="url"
+                placeholder="https://www.example.com"
+                value={editUrlValue}
+                onChange={(e) => setEditUrlValue(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    onUpdateCompanyUrl(editUrlTicker!, editUrlAssetType, editUrlValue.trim() || null);
+                    setEditUrlTicker(null);
+                  }
+                }}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditUrlTicker(null)}>Cancel</Button>
+              <Button onClick={() => {
+                onUpdateCompanyUrl(editUrlTicker!, editUrlAssetType, editUrlValue.trim() || null);
+                setEditUrlTicker(null);
+              }}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
