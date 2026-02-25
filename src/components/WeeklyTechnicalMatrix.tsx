@@ -190,7 +190,11 @@ export const WeeklyTechnicalMatrix: React.FC = () => {
                       <TableCell className="text-center">
                         {row.ticker === 'SPY'
                           ? getRRGBadge('Benchmark')
-                          : getRRGBadge(metadata[row.ticker]?.sectorQuadrant ?? row.rrgQuadrant)}
+                          : getRRGBadge(
+                              (metadata[row.ticker]?.sectorQuadrant && metadata[row.ticker].sectorQuadrant !== 'N/A')
+                                ? metadata[row.ticker].sectorQuadrant
+                                : row.rrgQuadrant
+                            )}
                       </TableCell>
                       <TableCell className="text-center">
                         {(() => {
