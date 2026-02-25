@@ -766,22 +766,20 @@ Deno.serve(async (req) => {
       // Apply earnings date filter
       const nextEarningDate = stock.nextEarningDate || null;
       if (passed && earningsWithinDays !== null && earningsWithinDays !== undefined) {
-        if (!nextEarningDate) {
-          passed = false;
-          console.log(`❌ ${stock.ticker} filtered out: no earnings date set`);
-        } else {
+        if (nextEarningDate) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const earningDate = new Date(nextEarningDate);
           earningDate.setHours(0, 0, 0, 0);
           const diffDays = Math.ceil((earningDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays < 0 || diffDays > earningsWithinDays) {
+          if (diffDays >= 0 && diffDays <= earningsWithinDays) {
             passed = false;
-            console.log(`❌ ${stock.ticker} filtered out: earnings in ${diffDays} days, limit is ${earningsWithinDays}`);
+            console.log(`❌ ${stock.ticker} filtered out: earnings too soon (${diffDays} days away, threshold is ${earningsWithinDays})`);
           } else {
-            console.log(`✅ ${stock.ticker} earnings in ${diffDays} days, within ${earningsWithinDays} day limit`);
+            console.log(`✅ ${stock.ticker} earnings in ${diffDays} days, safely beyond ${earningsWithinDays} day threshold`);
           }
         }
+        // If no earnings date is set, do not filter out — pass through
       }
 
       console.log(`🎯 ${stock.ticker} PASSED: ${passed}\n`);
