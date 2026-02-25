@@ -161,7 +161,7 @@ export const TradingDashboard: React.FC = () => {
             <div className="flex items-center justify-center gap-3">
               <BarChart3 className="h-8 w-8 text-primary" />
               <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Ticker Triumph
+                MyStockData
               </h1>
             </div>
             <p className="text-muted-foreground text-lg">
