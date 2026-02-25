@@ -399,16 +399,16 @@ export const TradingDashboard: React.FC = () => {
                         <p className="text-xs text-muted-foreground">Only show tickers with RSI in this range</p>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Earnings Within (Days)</Label>
+                        <Label className="text-sm font-medium">Exclude Earnings Within (Days)</Label>
                         <Input
                           type="number"
-                          placeholder="e.g. 2"
+                          placeholder="e.g. 3"
                           value={earningsWithinDays}
                           onChange={(e) => setEarningsWithinDays(e.target.value)}
                           className="w-full"
                           min="0"
                         />
-                        <p className="text-xs text-muted-foreground">Only show tickers with earnings in the next X days</p>
+                        <p className="text-xs text-muted-foreground">Fail tickers with earnings within the next X days</p>
                       </div>
                     </div>
                   </div>
