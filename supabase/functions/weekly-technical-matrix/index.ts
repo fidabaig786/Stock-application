@@ -231,14 +231,14 @@ async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values
 
 // ─── Polygon EMA Fetch (Stock EMA logic - same as analysis page) ───
 
-// Unified EMA: identical to stock-analysis calculateEMACrossover URL format
+// Unified EMA: identical to stock-analysis calculateEMACrossover URL format (daily timespan)
 async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): Promise<number | null> {
   const endDate = new Date();
   if (endDate.getDay() === 0) endDate.setDate(endDate.getDate() - 2);
   if (endDate.getDay() === 6) endDate.setDate(endDate.getDate() - 1);
   const endStr = endDate.toISOString().split('T')[0];
 
-  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endStr}&timespan=week&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
+  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endStr}&adjusted=true&window=${window}&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
   try {
     const res = await fetchWithRetry(url);
     if (!res.ok) {
