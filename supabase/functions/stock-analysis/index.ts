@@ -207,11 +207,11 @@ async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ 
   try {
     const endDate = getStableEndDate();
     
-    // Get EMA_8 value using Polygon's built-in EMA endpoint
-    const ema8Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=week&adjusted=true&window=8&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
+    // Get EMA_8 value using Polygon's built-in EMA endpoint (daily timespan, no timespan filter = default day)
+    const ema8Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&adjusted=true&window=8&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
     
-    // Get EMA_21 value using Polygon's built-in EMA endpoint  
-    const ema21Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=week&adjusted=true&window=21&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
+    // Get EMA_21 value using Polygon's built-in EMA endpoint (daily timespan)
+    const ema21Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&adjusted=true&window=21&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
 
     const [ema8Response, ema21Response] = await Promise.all([
       fetchWithRetry(ema8Url),
@@ -268,11 +268,11 @@ async function calculateDailyEMACrossover(ticker: string, apiKey: string): Promi
   try {
     const endDate = getStableEndDate();
     
-    // Get EMA_8 value using Polygon's built-in EMA endpoint for daily data
-    const ema8Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=day&adjusted=true&window=8&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
+    // Get EMA_8 value using Polygon's built-in EMA endpoint for daily data (options)
+    const ema8Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=day&adjusted=true&window=8&series_type=close&order=desc&limit=30&apikey=${apiKey}`;
     
-    // Get EMA_21 value using Polygon's built-in EMA endpoint for daily data
-    const ema21Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=day&adjusted=true&window=21&series_type=close&order=desc&limit=1&apikey=${apiKey}`;
+    // Get EMA_21 value using Polygon's built-in EMA endpoint for daily data (options)
+    const ema21Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&timespan=day&adjusted=true&window=21&series_type=close&order=desc&limit=30&apikey=${apiKey}`;
 
     const [ema8Response, ema21Response] = await Promise.all([
       fetchWithRetry(ema8Url),
