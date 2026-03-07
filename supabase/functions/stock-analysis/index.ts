@@ -326,7 +326,7 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
   }
 }
 
-
+async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
     const endDate = getStableEndDate();
     
