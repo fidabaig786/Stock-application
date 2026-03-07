@@ -317,7 +317,7 @@ serve(async (req) => {
         fetchPolygonRSI(ticker, apiKey),
         fetchPolygonEMA(ticker, apiKey, 8),
         fetchPolygonEMA(ticker, apiKey, 21),
-        fetchPolygonMACD(ticker, apiKey),
+        fetchAndCalcMACD(ticker, apiKey),
       ]);
       dataMap[ticker] = weeklyData;
       rsiMap[ticker] = rsiData;
