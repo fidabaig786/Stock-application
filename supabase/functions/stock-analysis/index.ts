@@ -249,6 +249,82 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
   }
 }
 
+async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
+  try {
+    // Fetch 80 days of daily candle data
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 80);
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    const response = await fetchWithRetry(url);
+    const data = await response.json();
+
+    if (data.status !== "OK" && data.status !== "DELAYED") {
+      return { status: "❌ Polygon API error", crossover: false };
+    }
+    if (!data.results || data.results.length < 20) {
+      return { status: "❌ Insufficient daily data for MACD", crossover: false };
+    }
+
+    // Remove today's incomplete candle
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTs = today.getTime();
+    const bars = data.results.filter((r: any) => r.t < todayTs);
+    if (bars.length < 20) {
+      return { status: "❌ Insufficient completed daily data for MACD", crossover: false };
+    }
+
+    const closes: number[] = bars.map((r: any) => r.c);
+
+    // Calculate MACD using EWM (fast=5, slow=13, signal=5)
+    const emaFast = calcEWM(closes, 5);
+    const emaSlow = calcEWM(closes, 13);
+    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
+    const signalLine = calcEWM(macdLine, 5);
+
+    // Detect crossovers: find latest crossover
+    const n = macdLine.length;
+    let latestCrossoverIdx = -1;
+    for (let i = 1; i < n; i++) {
+      const currAbove = macdLine[i] > signalLine[i];
+      const prevAbove = macdLine[i - 1] > signalLine[i - 1];
+      if (currAbove !== prevAbove) {
+        latestCrossoverIdx = i;
+      }
+    }
+
+    let status: string;
+    let passed: boolean;
+
+    if (latestCrossoverIdx >= 0) {
+      const crossDate = new Date(bars[latestCrossoverIdx].t).toISOString().split('T')[0];
+      const isBullish = macdLine[latestCrossoverIdx] > signalLine[latestCrossoverIdx];
+      if (isBullish) {
+        status = `✅ Bullish crossover (${crossDate})`;
+        passed = true;
+      } else {
+        status = `❌ Bearish crossover (${crossDate})`;
+        passed = false;
+      }
+    } else {
+      const currAbove = macdLine[n - 1] > signalLine[n - 1];
+      status = currAbove
+        ? `✅ Bullish (MACD > Signal, no crossover)`
+        : `❌ Bearish (MACD < Signal, no crossover)`;
+      passed = currAbove;
+    }
+
+    console.log(`${ticker} - dailyMacd: ${status} (MACD: ${macdLine[n-1].toFixed(4)}, Signal: ${signalLine[n-1].toFixed(4)})`);
+    return { status, crossover: passed };
+  } catch (error) {
+    console.error(`Daily MACD calculation error for ${ticker}:`, error);
+    return { status: "❌ Daily MACD calculation error", crossover: false };
+  }
+}
 
 async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
@@ -643,8 +719,8 @@ async function calculateTechnicalIndicators(historicalData: any[], ticker: strin
   }
 
   if (criteria.macdCrossover) {
-    // Unified: use weekly Polygon MACD (19/39/9) for all asset types
-    const macdResult = await calculateWeeklyMACD(ticker, apiKey, assetType);
+    // Daily MACD (5/13/5) for options analysis
+    const macdResult = await calculateDailyMACD(ticker, apiKey);
     s.macdCrossover = macdResult.status;
     flags.macdCrossover = !!macdResult.crossover;
   }
