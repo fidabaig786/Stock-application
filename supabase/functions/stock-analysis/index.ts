@@ -719,8 +719,8 @@ async function calculateTechnicalIndicators(historicalData: any[], ticker: strin
   }
 
   if (criteria.macdCrossover) {
-    // Unified: use weekly Polygon MACD (19/39/9) for all asset types
-    const macdResult = await calculateWeeklyMACD(ticker, apiKey, assetType);
+    // Daily MACD (5/13/5) for options analysis
+    const macdResult = await calculateDailyMACD(ticker, apiKey);
     s.macdCrossover = macdResult.status;
     flags.macdCrossover = !!macdResult.crossover;
   }
