@@ -97,38 +97,56 @@ function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: numb
   return { macdLine, signalLine, histogram };
 }
 
-// ─── Polygon MACD Fetch (unified: 19/39/9 weekly close) ───
+// ─── Local Weekly MACD (120 weeks, remove incomplete week, EWM 19/39/9) ───
 
-// Unified MACD: identical to stock-analysis calculateWeeklyMACD
-async function fetchPolygonMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
-  const url = `https://api.polygon.io/v1/indicators/macd/${ticker}?timespan=week&adjusted=true&short_window=19&long_window=39&signal_window=9&series_type=close&order=desc&limit=2&apikey=${apiKey}`;
+async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 120 * 7);
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
     const res = await fetchWithRetry(url);
     if (!res.ok) {
-      console.error(`Polygon MACD API error for ${ticker}: ${res.status}`);
+      console.error(`Polygon weekly data error for MACD ${ticker}: ${res.status}`);
       return { crossover: 'N/A' };
     }
     const data = await res.json();
-
     if (data.status !== "OK" && data.status !== "DELAYED") {
-      console.error(`Polygon MACD status error for ${ticker}: ${data.status}`);
+      return { crossover: 'N/A' };
+    }
+    if (!data.results || data.results.length < 40) {
       return { crossover: 'N/A' };
     }
 
-    if (!data.results?.values || data.results.values.length < 1) {
-      console.error(`No MACD data for ${ticker}`);
+    // Remove current incomplete week (Monday-anchored)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+    lastMonday.setHours(0, 0, 0, 0);
+    const lastMondayTs = lastMonday.getTime();
+
+    const bars = data.results.filter((r: any) => r.t < lastMondayTs);
+    if (bars.length < 40) {
       return { crossover: 'N/A' };
     }
 
-    const latest = data.results.values[0];
-    const macdValue = latest.value;
-    const signalValue = latest.signal;
-    const isBullish = macdValue >= signalValue;
-    const latestTs = latest.timestamp ? new Date(latest.timestamp).toISOString().split('T')[0] : 'unknown';
-    console.log(`[MATRIX-MACD] ${ticker} date=${latestTs} MACD=${macdValue} Signal=${signalValue} => ${isBullish ? 'Bullish' : 'Bearish'}`);
+    const closes: number[] = bars.map((r: any) => r.c);
+    const emaFast = calcPandasEWM(closes, 19);
+    const emaSlow = calcPandasEWM(closes, 39);
+    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
+    const signalLine = calcPandasEWM(macdLine, 9);
+
+    const n = macdLine.length;
+    const isBullish = macdLine[n - 1] >= signalLine[n - 1];
+    const latestDate = new Date(bars[bars.length - 1].t).toISOString().split('T')[0];
+    console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} MACD=${macdLine[n-1].toFixed(4)} Signal=${signalLine[n-1].toFixed(4)} => ${isBullish ? 'Bullish' : 'Bearish'}`);
     return { crossover: isBullish ? 'Bullish' : 'Bearish' };
   } catch (e) {
-    console.error(`Error fetching MACD for ${ticker}:`, e);
+    console.error(`Error calculating MACD for ${ticker}:`, e);
     return { crossover: 'N/A' };
   }
 }
@@ -299,7 +317,7 @@ serve(async (req) => {
         fetchPolygonRSI(ticker, apiKey),
         fetchPolygonEMA(ticker, apiKey, 8),
         fetchPolygonEMA(ticker, apiKey, 21),
-        fetchPolygonMACD(ticker, apiKey),
+        fetchAndCalcMACD(ticker, apiKey),
       ]);
       dataMap[ticker] = weeklyData;
       rsiMap[ticker] = rsiData;
