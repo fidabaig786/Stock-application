@@ -77,7 +77,7 @@ function calcRSI(closes: number[], period = 14): number[] {
   return rsi;
 }
 
-// Unified MACD logic: EWM with span fast=19, slow=39, signal=9 (matches Polygon API params)
+// Unified MACD logic: EWM with span fast=5, slow=13, signal=5
 function calcPandasEWM(data: number[], span: number): number[] {
   if (data.length === 0) return [];
   const alpha = 2 / (span + 1);
@@ -89,10 +89,10 @@ function calcPandasEWM(data: number[], span: number): number[] {
 }
 
 function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
-  const emaFast = calcPandasEWM(closes, 19);
-  const emaSlow = calcPandasEWM(closes, 39);
+  const emaFast = calcPandasEWM(closes, 5);
+  const emaSlow = calcPandasEWM(closes, 13);
   const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalLine = calcPandasEWM(macdLine, 9);
+  const signalLine = calcPandasEWM(macdLine, 5);
   const histogram = macdLine.map((v, i) => v - signalLine[i]);
   return { macdLine, signalLine, histogram };
 }
