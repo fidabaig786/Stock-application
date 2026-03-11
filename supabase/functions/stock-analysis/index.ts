@@ -251,10 +251,10 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
 
 async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    // Fetch 80 days of daily candle data
+    // Fetch 150 days of daily candle data for EMA warm-up
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 80);
+    startDate.setDate(startDate.getDate() - 150);
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
@@ -269,30 +269,33 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
       return { status: "❌ Insufficient daily data for MACD", crossover: false };
     }
 
-    // Remove today's incomplete candle
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTs = today.getTime();
-    const bars = data.results.filter((r: any) => r.t < todayTs);
-    if (bars.length < 20) {
-      return { status: "❌ Insufficient completed daily data for MACD", crossover: false };
-    }
-
+    // Do NOT remove today's candle - use most recent data available
+    const bars = data.results;
     const closes: number[] = bars.map((r: any) => r.c);
 
     // Calculate MACD using EWM (fast=5, slow=13, signal=5)
     const emaFast = calcEWM(closes, 5);
     const emaSlow = calcEWM(closes, 13);
-    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
+    const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
     const signalLine = calcEWM(macdLine, 5);
 
-    // Detect crossovers: find latest crossover
+    // Detect crossovers using prev_macd/prev_signal comparison
     const n = macdLine.length;
+    const lookback = Math.min(30, n - 1);
+
+    // Find all crossovers in the lookback period
     let latestCrossoverIdx = -1;
-    for (let i = 1; i < n; i++) {
-      const currAbove = macdLine[i] > signalLine[i];
-      const prevAbove = macdLine[i - 1] > signalLine[i - 1];
-      if (currAbove !== prevAbove) {
+    for (let i = n - lookback; i < n; i++) {
+      if (i < 1) continue;
+      const prevMacd = macdLine[i - 1];
+      const prevSignal = signalLine[i - 1];
+      const currMacd = macdLine[i];
+      const currSignal = signalLine[i];
+
+      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
+      const bullishCross = (prevMacd < prevSignal) && (currMacd > currSignal);
+
+      if (bearishCross || bullishCross) {
         latestCrossoverIdx = i;
       }
     }
@@ -313,8 +316,8 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
     } else {
       const currAbove = macdLine[n - 1] > signalLine[n - 1];
       status = currAbove
-        ? `✅ Bullish (MACD > Signal, no crossover)`
-        : `❌ Bearish (MACD < Signal, no crossover)`;
+        ? `✅ Bullish (MACD > Signal, no crossover in last 30 days)`
+        : `❌ Bearish (MACD < Signal, no crossover in last 30 days)`;
       passed = currAbove;
     }
 
