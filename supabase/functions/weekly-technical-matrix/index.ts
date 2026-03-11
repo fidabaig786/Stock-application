@@ -392,9 +392,9 @@ serve(async (req) => {
       const ema8 = calcEMA(closes, 8);
       const ema21 = calcEMA(closes, 21);
 
-      // MACD from Polygon API (unified: 19/39/9 weekly close)
+      // MACD (5/13/5 weekly close)
       const macdSignal = macdMap[ticker]?.crossover ?? 'N/A';
-      // Local MACD for chart candles (same 19/39/9 params)
+      // Local MACD for chart candles (5/13/5 params)
       const { macdLine, signalLine, histogram } = calcLocalMACD(closes);
 
       // RRG – align by timestamp to avoid mismatched weeks
