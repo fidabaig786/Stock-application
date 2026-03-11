@@ -177,7 +177,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <button 
-                            onClick={() => handleTickerClick(result)}
+                            onClick={() => handleTickerClick(result.ticker)}
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
                           >
                             {result.ticker}
