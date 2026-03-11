@@ -175,15 +175,19 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                     <div key={result.ticker} className="border rounded-lg p-4 bg-card/30">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <a 
-                            href={getChartUrl(result.ticker, result.companyUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
-                          >
-                            {result.ticker}
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                          {result.companyUrl ? (
+                            <a 
+                              href={result.companyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
+                            >
+                              {result.ticker}
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span className="text-xl font-bold">{result.ticker}</span>
+                          )}
                           <Badge variant={result.assetType === 'Stock' ? 'outline' : 'secondary'}>
                             {result.assetType}
                           </Badge>
