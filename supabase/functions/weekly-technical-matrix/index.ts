@@ -359,22 +359,19 @@ serve(async (req) => {
     // Process tickers sequentially to avoid Polygon rate limits (matches stock-analysis approach)
     const dataMap: Record<string, Awaited<ReturnType<typeof fetchWeeklyData>>> = {};
     const rsiMap: Record<string, Awaited<ReturnType<typeof fetchPolygonRSI>>> = {};
-    const ema8Map: Record<string, number | null> = {};
-    const ema21Map: Record<string, number | null> = {};
+    const emaMap: Record<string, { crossover: string }> = {};
     const macdMap: Record<string, { crossover: string }> = {};
     
     for (const ticker of allTickers) {
-      const [weeklyData, rsiData, ema8Val, ema21Val, macdData] = await Promise.all([
+      const [weeklyData, rsiData, emaData, macdData] = await Promise.all([
         fetchWeeklyData(ticker, apiKey),
         fetchPolygonRSI(ticker, apiKey),
-        fetchPolygonEMA(ticker, apiKey, 8),
-        fetchPolygonEMA(ticker, apiKey, 21),
+        fetchAndCalcEMA(ticker, apiKey),
         fetchAndCalcMACD(ticker, apiKey),
       ]);
       dataMap[ticker] = weeklyData;
       rsiMap[ticker] = rsiData;
-      ema8Map[ticker] = ema8Val;
-      ema21Map[ticker] = ema21Val;
+      emaMap[ticker] = emaData;
       macdMap[ticker] = macdData;
       // Small delay between tickers to respect rate limits
       await sleep(200);
