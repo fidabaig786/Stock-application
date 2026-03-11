@@ -412,13 +412,8 @@ serve(async (req) => {
       // Local RSI calculation for chart candles
       const rsiArr = calcRSI(closes, 14);
 
-      // EMA 8 × EMA 21 crossover (from Polygon API - stock EMA logic)
-      const ema8Val = ema8Map[ticker];
-      const ema21Val = ema21Map[ticker];
-      let emaCrossover = 'N/A';
-      if (ema8Val != null && ema21Val != null) {
-        emaCrossover = ema8Val > ema21Val ? 'Bullish' : 'Bearish';
-      }
+      // EMA 8 × EMA 21 crossover (local weekly EMA calculation)
+      const emaCrossover = emaMap[ticker]?.crossover ?? 'N/A';
 
       // Local EMA for chart candles
       const ema8 = calcEMA(closes, 8);
