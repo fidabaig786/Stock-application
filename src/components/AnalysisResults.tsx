@@ -28,7 +28,8 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const getChartUrl = (ticker: string) => {
+const getChartUrl = (ticker: string, companyUrl?: string) => {
+  if (companyUrl) return companyUrl;
   const symbol = encodeURIComponent(ticker);
   return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&range=12M`;
 };
@@ -103,7 +104,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <a 
-                            href={getChartUrl(result.ticker)}
+                            href={getChartUrl(result.ticker, result.companyUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
@@ -179,7 +180,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <a 
-                            href={getChartUrl(result.ticker)}
+                            href={getChartUrl(result.ticker, result.companyUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
