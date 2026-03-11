@@ -97,13 +97,13 @@ function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: numb
   return { macdLine, signalLine, histogram };
 }
 
-// ─── Local Weekly MACD (120 weeks, remove incomplete week, EWM 19/39/9) ───
+// ─── Local Weekly MACD (1100 days history, EWM 5/13/5, crossover in last 8 weeks) ───
 
 async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 120 * 7);
+    startDate.setDate(startDate.getDate() - 1100);
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
@@ -117,34 +117,51 @@ async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ cross
     if (data.status !== "OK" && data.status !== "DELAYED") {
       return { crossover: 'N/A' };
     }
-    if (!data.results || data.results.length < 40) {
+    if (!data.results || data.results.length < 14) {
       return { crossover: 'N/A' };
     }
 
-    // Remove current incomplete week (Monday-anchored)
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const lastMonday = new Date(now);
-    lastMonday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
-    lastMonday.setHours(0, 0, 0, 0);
-    const lastMondayTs = lastMonday.getTime();
-
-    const bars = data.results.filter((r: any) => r.t < lastMondayTs);
-    if (bars.length < 40) {
-      return { crossover: 'N/A' };
-    }
-
+    const bars = data.results;
     const closes: number[] = bars.map((r: any) => r.c);
-    const emaFast = calcPandasEWM(closes, 19);
-    const emaSlow = calcPandasEWM(closes, 39);
-    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-    const signalLine = calcPandasEWM(macdLine, 9);
+    const emaFast = calcPandasEWM(closes, 5);
+    const emaSlow = calcPandasEWM(closes, 13);
+    const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
+    const signalLine = calcPandasEWM(macdLine, 5);
 
+    // Detect crossovers in the last 8 weeks
     const n = macdLine.length;
-    const isBullish = macdLine[n - 1] >= signalLine[n - 1];
-    const latestDate = new Date(bars[bars.length - 1].t).toISOString().split('T')[0];
-    console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} MACD=${macdLine[n-1].toFixed(4)} Signal=${signalLine[n-1].toFixed(4)} => ${isBullish ? 'Bullish' : 'Bearish'}`);
-    return { crossover: isBullish ? 'Bullish' : 'Bearish' };
+    const lookback = Math.min(8, n - 1);
+    let lastCrossover = 'N/A';
+
+    // Check from most recent going back to find the latest crossover
+    for (let i = n - 1; i >= n - lookback && i >= 1; i--) {
+      const prevMacd = macdLine[i - 1];
+      const prevSignal = signalLine[i - 1];
+      const currMacd = macdLine[i];
+      const currSignal = signalLine[i];
+
+      if (prevMacd < prevSignal && currMacd >= currSignal) {
+        lastCrossover = 'Bullish';
+        const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BULLISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
+        break;
+      } else if (prevMacd > prevSignal && currMacd < currSignal) {
+        lastCrossover = 'Bearish';
+        const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BEARISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
+        break;
+      }
+    }
+
+    // If no crossover in last 8 weeks, use current position
+    if (lastCrossover === 'N/A') {
+      const isBullish = macdLine[n - 1] >= signalLine[n - 1];
+      lastCrossover = isBullish ? 'Bullish' : 'Bearish';
+      const latestDate = new Date(bars[n - 1].t).toISOString().split('T')[0];
+      console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} NO CROSS, current: MACD=${macdLine[n-1].toFixed(4)} Signal=${signalLine[n-1].toFixed(4)} => ${lastCrossover}`);
+    }
+
+    return { crossover: lastCrossover };
   } catch (e) {
     console.error(`Error calculating MACD for ${ticker}:`, e);
     return { crossover: 'N/A' };
