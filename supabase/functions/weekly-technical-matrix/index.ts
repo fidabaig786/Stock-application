@@ -264,37 +264,72 @@ async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values
   }
 }
 
-// ─── Polygon EMA Fetch (Stock EMA logic - same as analysis page) ───
+// ─── Local Weekly EMA Crossover (1100 days history, EWM 8/21, crossover in last 40 weeks) ───
 
-// Unified EMA: identical to stock-analysis calculateEMACrossover URL format (daily timespan)
-async function fetchPolygonEMA(ticker: string, apiKey: string, window: number): Promise<number | null> {
-  const endDate = new Date();
-  if (endDate.getDay() === 0) endDate.setDate(endDate.getDate() - 2);
-  if (endDate.getDay() === 6) endDate.setDate(endDate.getDate() - 1);
-  const endStr = endDate.toISOString().split('T')[0];
-
-  const url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endStr}&adjusted=true&window=${window}&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
+async function fetchAndCalcEMA(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 1100);
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
     const res = await fetchWithRetry(url);
     if (!res.ok) {
-      console.error(`Polygon EMA(${window}) API error for ${ticker}: ${res.status}`);
-      return null;
+      console.error(`Polygon weekly data error for EMA ${ticker}: ${res.status}`);
+      return { crossover: 'N/A' };
     }
     const data = await res.json();
     if (data.status !== "OK" && data.status !== "DELAYED") {
-      console.error(`Polygon EMA(${window}) status error for ${ticker}: ${data.status}`);
-      return null;
+      return { crossover: 'N/A' };
     }
-    if (!data.results?.values?.length) {
-      console.error(`No EMA(${window}) data for ${ticker}`);
-      return null;
+    if (!data.results || data.results.length < 22) {
+      return { crossover: 'N/A' };
     }
-    const val = data.results.values[0].value;
-    console.log(`${ticker} - EMA(${window}): ${val.toFixed(4)}`);
-    return val;
+
+    const bars = data.results;
+    const closes: number[] = bars.map((r: any) => r.c);
+    const ema8 = calcPandasEWM(closes, 8);
+    const ema21 = calcPandasEWM(closes, 21);
+
+    const n = closes.length;
+
+    // Detect crossovers in last 40 weeks
+    const lookback = Math.min(40, n - 1);
+    let lastCrossover = 'N/A';
+
+    for (let i = n - 1; i >= n - lookback && i >= 1; i--) {
+      const prevEma8 = ema8[i - 1];
+      const prevEma21 = ema21[i - 1];
+      const currEma8 = ema8[i];
+      const currEma21 = ema21[i];
+
+      if (prevEma8 < prevEma21 && currEma8 >= currEma21) {
+        lastCrossover = 'Bullish';
+        const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
+        console.log(`[MATRIX-EMA] ${ticker} date=${crossDate} BULLISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
+        break;
+      } else if (prevEma8 > prevEma21 && currEma8 < currEma21) {
+        lastCrossover = 'Bearish';
+        const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
+        console.log(`[MATRIX-EMA] ${ticker} date=${crossDate} BEARISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
+        break;
+      }
+    }
+
+    // If no crossover found, use current position
+    if (lastCrossover === 'N/A') {
+      const isBullish = ema8[n - 1] >= ema21[n - 1];
+      lastCrossover = isBullish ? 'Bullish' : 'Bearish';
+      const latestDate = new Date(bars[n - 1].t).toISOString().split('T')[0];
+      console.log(`[MATRIX-EMA] ${ticker} date=${latestDate} NO CROSS, current: EMA8=${ema8[n-1].toFixed(4)} EMA21=${ema21[n-1].toFixed(4)} => ${lastCrossover}`);
+    }
+
+    return { crossover: lastCrossover };
   } catch (e) {
-    console.error(`Error fetching EMA(${window}) for ${ticker}:`, e);
-    return null;
+    console.error(`Error calculating EMA for ${ticker}:`, e);
+    return { crossover: 'N/A' };
   }
 }
 

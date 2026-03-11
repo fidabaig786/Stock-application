@@ -331,58 +331,69 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
 
 async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    const endDate = getStableEndDate();
-    
-    // Get EMA_8 value using Polygon's built-in EMA endpoint (daily timespan, no timespan filter = default day)
-    const ema8Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&adjusted=true&window=8&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
-    
-    // Get EMA_21 value using Polygon's built-in EMA endpoint (daily timespan)
-    const ema21Url = `https://api.polygon.io/v1/indicators/ema/${ticker}?timestamp.gte=2024-01-01&timestamp.lte=${endDate}&adjusted=true&window=21&series_type=close&order=desc&limit=52&apikey=${apiKey}`;
+    // Fetch ~3 years of weekly candle data for accurate EMA warm-up
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 1100);
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
 
-    const [ema8Response, ema21Response] = await Promise.all([
-      fetchWithRetry(ema8Url),
-      fetchWithRetry(ema21Url)
-    ]);
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    const response = await fetchWithRetry(url);
+    const data = await response.json();
 
-    const ema8Data = await ema8Response.json();
-    const ema21Data = await ema21Response.json();
-
-    if (ema8Data.status !== "OK" && ema8Data.status !== "DELAYED") {
-      return { status: "❌ EMA_8 API error", crossover: false };
+    if (data.status !== "OK" && data.status !== "DELAYED") {
+      return { status: "❌ Polygon API error", crossover: false };
+    }
+    if (!data.results || data.results.length < 22) {
+      return { status: "❌ Insufficient weekly data for EMA", crossover: false };
     }
 
-    if (ema21Data.status !== "OK" && ema21Data.status !== "DELAYED") {
-      return { status: "❌ EMA_21 API error", crossover: false };
+    const bars = data.results;
+    const closes: number[] = bars.map((r: any) => r.c);
+
+    // Calculate EMA 8 and EMA 21 locally using EWM (adjust=False equivalent)
+    const ema8 = calcEWM(closes, 8);
+    const ema21 = calcEWM(closes, 21);
+
+    const n = closes.length;
+
+    // Detect crossovers in last 40 weeks
+    const lookback = Math.min(40, n - 1);
+    const crossovers: { idx: number; bullish: boolean }[] = [];
+
+    for (let i = n - lookback; i < n; i++) {
+      if (i < 1) continue;
+      const prevEma8 = ema8[i - 1];
+      const prevEma21 = ema21[i - 1];
+      const currEma8 = ema8[i];
+      const currEma21 = ema21[i];
+
+      const bullishCross = (prevEma8 < prevEma21) && (currEma8 > currEma21);
+      const bearishCross = (prevEma8 > prevEma21) && (currEma8 < currEma21);
+
+      if (bullishCross || bearishCross) {
+        crossovers.push({ idx: i, bullish: bullishCross });
+      }
     }
 
-    if (!ema8Data.results?.values?.length || !ema21Data.results?.values?.length) {
-      return { status: "❌ No EMA data available", crossover: false };
+    // Current trend
+    const isBullish = ema8[n - 1] > ema21[n - 1];
+
+    let status: string;
+    if (crossovers.length > 0) {
+      const latest = crossovers[crossovers.length - 1];
+      const crossDate = new Date(bars[latest.idx].t).toISOString().split('T')[0];
+      status = latest.bullish
+        ? `✅ Bullish crossover (${crossDate})`
+        : `❌ Bearish crossover (${crossDate})`;
+    } else {
+      status = isBullish
+        ? `✅ Bullish (EMA_8 > EMA_21, no crossover in last 40 weeks)`
+        : `❌ Bearish (EMA_8 <= EMA_21, no crossover in last 40 weeks)`;
     }
 
-    const ema8 = ema8Data.results.values[0];
-    const ema21 = ema21Data.results.values[0];
-
-    // Check if both EMAs are from the same timestamp, use more recent if different
-    const ema8Timestamp = ema8.timestamp;
-    const ema21Timestamp = ema21.timestamp;
-    const latestTimestamp = Math.max(ema8Timestamp, ema21Timestamp);
-
-    if (ema8Timestamp !== ema21Timestamp) {
-      console.log(`Warning: EMA timestamps don't match for ${ticker}. Using latest available data.`);
-    }
-
-    const ema8Value = ema8.value;
-    const ema21Value = ema21.value;
-    const difference = ema8Value - ema21Value;
-
-    // Determine bullish or bearish based on EMA_8 > EMA_21
-    const isBullish = ema8Value > ema21Value;
-    const status = isBullish
-      ? "✅ Bullish (EMA_8 > EMA_21)"
-      : "❌ Bearish (EMA_8 <= EMA_21)";
-
-    console.log(`${ticker} - EMA Crossover: ${status} (EMA_8: ${ema8Value.toFixed(2)}, EMA_21: ${ema21Value.toFixed(2)}, Diff: ${difference.toFixed(2)})`);
-    
+    console.log(`${ticker} - EMA Crossover: ${status} (EMA_8: ${ema8[n-1].toFixed(2)}, EMA_21: ${ema21[n-1].toFixed(2)})`);
     return { status, crossover: isBullish };
   } catch (error) {
     console.error(`EMA crossover calculation error for ${ticker}:`, error);
