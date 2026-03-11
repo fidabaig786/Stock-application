@@ -1,4 +1,4 @@
-// v6 - Debug: log raw MACD values for cross-verification
+// v7 - MACD params 5/13/5, crossover detection in last 8 weeks
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
