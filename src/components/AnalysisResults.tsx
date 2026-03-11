@@ -33,9 +33,6 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
-  const handleTickerClick = (ticker: string) => {
-    window.open(getChartUrl(ticker), '_blank', 'noopener,noreferrer');
-  };
 
   return (
     <div className="space-y-6">
