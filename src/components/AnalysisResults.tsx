@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, AlertTriangle, TrendingUp, Activity, ExternalLink } from 'lucide-react';
 import { AnalysisResult } from './TradingDashboard';
-import { useAuth } from '@/hooks/useAuth';
 
 interface AnalysisResultsProps {
   results: AnalysisResult[];
@@ -30,44 +28,21 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+const getChartUrl = (ticker: string) => {
+  const symbol = encodeURIComponent(ticker);
+  return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&range=12M`;
+};
+
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
-  const { user } = useAuth();
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
-  const handleTickerClick = (result: AnalysisResult) => {
-    setSelectedTicker(result.ticker);
-    setIsOpen(true);
-  };
-
-  const getWidgetUrl = (ticker: string) => {
-    const symbol = encodeURIComponent(ticker);
-    return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&range=12M`;
+  const handleTickerClick = (ticker: string) => {
+    window.open(getChartUrl(ticker), '_blank', 'noopener,noreferrer');
   };
 
   return (
     <div className="space-y-6">
-      <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setSelectedTicker(null); }}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden">
-          <DialogHeader className="p-4 pb-2 shrink-0">
-            <DialogTitle className="text-sm">{selectedTicker} — Daily Chart</DialogTitle>
-            <DialogDescription className="sr-only">TradingView chart for {selectedTicker}</DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 w-full">
-            {selectedTicker && isOpen && (
-              <iframe
-                key={selectedTicker}
-                src={getWidgetUrl(selectedTicker)}
-                className="w-full h-full border-0 rounded-b-lg bg-background"
-                allowFullScreen
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-success shadow-trading">
           <CardContent className="p-6">
@@ -128,7 +103,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <button 
-                            onClick={() => handleTickerClick(result)}
+                            onClick={() => handleTickerClick(result.ticker)}
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
                           >
                             {result.ticker}
@@ -202,7 +177,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <button 
-                            onClick={() => handleTickerClick(result)}
+                            onClick={() => handleTickerClick(result.ticker)}
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
                           >
                             {result.ticker}
