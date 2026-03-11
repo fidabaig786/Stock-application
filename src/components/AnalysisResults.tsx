@@ -180,7 +180,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <a 
-                            href={getChartUrl(result.ticker)}
+                            href={getChartUrl(result.ticker, result.companyUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
