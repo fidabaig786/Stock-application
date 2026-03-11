@@ -28,19 +28,11 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const getChartUrl = (ticker: string, companyUrl?: string) => {
-  if (companyUrl) return companyUrl;
-  const symbol = encodeURIComponent(ticker);
-  return `https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=exchange&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&range=12M`;
-};
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => {
   const passedResults = results.filter(r => r.passed);
   const totalResults = results.length;
 
-  const handleTickerClick = (ticker: string) => {
-    window.open(getChartUrl(ticker), '_blank', 'noopener,noreferrer');
-  };
 
   return (
     <div className="space-y-6">
@@ -103,15 +95,19 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                     <div key={result.ticker} className="border rounded-lg p-4 bg-card/50">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <a 
-                            href={getChartUrl(result.ticker, result.companyUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
-                          >
-                            {result.ticker}
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                          {result.companyUrl ? (
+                            <a 
+                              href={result.companyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
+                            >
+                              {result.ticker}
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span className="text-xl font-bold">{result.ticker}</span>
+                          )}
                           <Badge variant={result.assetType === 'Stock' ? 'default' : 'secondary'}>
                             {result.assetType}
                           </Badge>
@@ -179,15 +175,19 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results }) => 
                     <div key={result.ticker} className="border rounded-lg p-4 bg-card/30">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <a 
-                            href={getChartUrl(result.ticker, result.companyUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
-                          >
-                            {result.ticker}
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                          {result.companyUrl ? (
+                            <a 
+                              href={result.companyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xl font-bold hover:text-primary transition-colors cursor-pointer flex items-center gap-2"
+                            >
+                              {result.ticker}
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span className="text-xl font-bold">{result.ticker}</span>
+                          )}
                           <Badge variant={result.assetType === 'Stock' ? 'outline' : 'secondary'}>
                             {result.assetType}
                           </Badge>
