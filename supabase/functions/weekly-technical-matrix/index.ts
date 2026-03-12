@@ -145,12 +145,11 @@ async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ cross
     }
 
     const closes: number[] = bars.map((r: any) => r.c);
-    const emaFast = calcPandasEWM(closes, 5);
-    const emaSlow = calcPandasEWM(closes, 13);
-    const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
-    const signalLine = calcPandasEWM(macdLine, 5);
+    // Calculate EMA 8 and EMA 21 using EWM (adjust=False equivalent)
+    const ema8 = calcPandasEWM(closes, 8);
+    const ema21 = calcPandasEWM(closes, 21);
 
-    const n = macdLine.length;
+    const n = closes.length;
 
     // Detect crossovers in the last 40 weeks
     const lookback = Math.min(40, n - 1);
@@ -158,30 +157,30 @@ async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ cross
 
     // Check from most recent going back to find the latest crossover
     for (let i = n - 1; i >= n - lookback && i >= 1; i--) {
-      const prevMacd = macdLine[i - 1];
-      const prevSignal = signalLine[i - 1];
-      const currMacd = macdLine[i];
-      const currSignal = signalLine[i];
+      const prevEma8 = ema8[i - 1];
+      const prevEma21 = ema21[i - 1];
+      const currEma8 = ema8[i];
+      const currEma21 = ema21[i];
 
-      if (prevMacd < prevSignal && currMacd >= currSignal) {
+      if (prevEma8 < prevEma21 && currEma8 >= currEma21) {
         lastCrossover = 'Bullish';
         const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
-        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BULLISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BULLISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
         break;
-      } else if (prevMacd > prevSignal && currMacd < currSignal) {
+      } else if (prevEma8 > prevEma21 && currEma8 < currEma21) {
         lastCrossover = 'Bearish';
         const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
-        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BEARISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BEARISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
         break;
       }
     }
 
     // If no crossover in last 40 weeks, use current position
     if (lastCrossover === 'N/A') {
-      const isBullish = macdLine[n - 1] >= signalLine[n - 1];
+      const isBullish = ema8[n - 1] >= ema21[n - 1];
       lastCrossover = isBullish ? 'Bullish' : 'Bearish';
       const latestDate = new Date(bars[n - 1].t).toISOString().split('T')[0];
-      console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} NO CROSS, current: MACD=${macdLine[n-1].toFixed(4)} Signal=${signalLine[n-1].toFixed(4)} => ${lastCrossover}`);
+      console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} NO CROSS, current: EMA8=${ema8[n-1].toFixed(4)} EMA21=${ema21[n-1].toFixed(4)} => ${lastCrossover}`);
     }
 
     return { crossover: lastCrossover };

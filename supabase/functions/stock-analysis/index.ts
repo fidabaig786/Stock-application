@@ -219,13 +219,11 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
 
     const closes: number[] = bars.map((r: any) => r.c);
 
-    // Calculate MACD using EWM (span fast=5, slow=13, signal=5)
-    const emaFast = calcEWM(closes, 5);
-    const emaSlow = calcEWM(closes, 13);
-    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-    const signalLine = calcEWM(macdLine, 5);
+    // Calculate EMA 8 and EMA 21 using EWM (adjust=False equivalent)
+    const ema8 = calcEWM(closes, 8);
+    const ema21 = calcEWM(closes, 21);
 
-    const n = macdLine.length;
+    const n = closes.length;
 
     // Detect crossovers in last 40 weeks
     const lookback = Math.min(40, n - 1);
@@ -233,20 +231,20 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
 
     for (let i = n - lookback; i < n; i++) {
       if (i < 1) continue;
-      const prevMacd = macdLine[i - 1];
-      const prevSignal = signalLine[i - 1];
-      const currMacd = macdLine[i];
-      const currSignal = signalLine[i];
+      const prevEma8 = ema8[i - 1];
+      const prevEma21 = ema21[i - 1];
+      const currEma8 = ema8[i];
+      const currEma21 = ema21[i];
 
-      const bullishCross = (prevMacd < prevSignal) && (currMacd > currSignal);
-      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
+      const bullishCross = (prevEma8 < prevEma21) && (currEma8 > currEma21);
+      const bearishCross = (prevEma8 > prevEma21) && (currEma8 < currEma21);
 
       if (bullishCross || bearishCross) {
         crossovers.push({ idx: i, bullish: bullishCross });
       }
     }
 
-    const isBullish = macdLine[n - 1] > signalLine[n - 1];
+    const isBullish = ema8[n - 1] > ema21[n - 1];
     let status: string;
 
     if (crossovers.length > 0) {
@@ -257,11 +255,11 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
         : `❌ Bearish crossover (${crossDate})`;
     } else {
       status = isBullish
-        ? `✅ Bullish (MACD > Signal, no crossover in last 40 weeks)`
-        : `❌ Bearish (MACD < Signal, no crossover in last 40 weeks)`;
+        ? `✅ Bullish (EMA_8 > EMA_21, no crossover in last 40 weeks)`
+        : `❌ Bearish (EMA_8 <= EMA_21, no crossover in last 40 weeks)`;
     }
 
-    console.log(`${ticker} - weeklyMacd (${assetType}): ${status} (MACD: ${macdLine[n-1].toFixed(4)}, Signal: ${signalLine[n-1].toFixed(4)})`);
+    console.log(`${ticker} - weeklyMacd (${assetType}): ${status} (EMA_8: ${ema8[n-1].toFixed(4)}, EMA_21: ${ema21[n-1].toFixed(4)})`);
     return { status, crossover: isBullish };
   } catch (error) {
     console.error(`Weekly MACD calculation error for ${ticker}:`, error);
