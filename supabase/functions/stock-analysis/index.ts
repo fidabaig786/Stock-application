@@ -177,72 +177,92 @@ function calcEWM(data: number[], span: number): number[] {
 
 async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    // Fetch 120 weeks of weekly candle data
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 120 * 7);
+    startDate.setDate(startDate.getDate() - 1100);
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
-    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    // Fetch with sort=desc to get latest data first within limit, then sort ascending
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=desc&limit=500&apikey=${apiKey}`;
     const response = await fetchWithRetry(url);
     const data = await response.json();
 
     if (data.status !== "OK" && data.status !== "DELAYED") {
       return { status: "❌ Polygon API error", crossover: false };
     }
-
-    if (!data.results || data.results.length < 40) {
+    if (!data.results || data.results.length < 14) {
       return { status: "❌ Insufficient weekly data for MACD", crossover: false };
     }
 
-    // Remove current incomplete week (Monday-anchored)
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
-    const lastMonday = new Date(now);
-    lastMonday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
-    lastMonday.setHours(0, 0, 0, 0);
-    const lastMondayTs = lastMonday.getTime();
+    // Sort ascending by timestamp for correct EMA calculation
+    const sortedResults = data.results.sort((a: any, b: any) => a.t - b.t);
 
-    const bars = data.results.filter((r: any) => r.t < lastMondayTs);
-    if (bars.length < 40) {
+    // Drop incomplete current week
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun
+    const currentWeekMonday = new Date(today);
+    currentWeekMonday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    currentWeekMonday.setHours(0, 0, 0, 0);
+    const currentWeekMondayTs = currentWeekMonday.getTime();
+
+    let bars = sortedResults;
+    const lastBarTs = bars[bars.length - 1].t;
+    if (lastBarTs >= currentWeekMondayTs) {
+      console.log(`[MACD] ${ticker} Dropped incomplete week: ${new Date(lastBarTs).toISOString().split('T')[0]}`);
+      bars = bars.slice(0, -1);
+    }
+
+    if (bars.length < 14) {
       return { status: "❌ Insufficient completed weekly data for MACD", crossover: false };
     }
 
     const closes: number[] = bars.map((r: any) => r.c);
 
-    // Calculate MACD using EWM (span fast=19, slow=39, signal=9)
-    const emaFast = calcEWM(closes, 19);
-    const emaSlow = calcEWM(closes, 39);
+    // Calculate MACD using EWM (span fast=5, slow=13, signal=5)
+    const emaFast = calcEWM(closes, 5);
+    const emaSlow = calcEWM(closes, 13);
     const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-    const signalLine = calcEWM(macdLine, 9);
+    const signalLine = calcEWM(macdLine, 5);
 
-    // Detect crossover: compare last two bars
     const n = macdLine.length;
-    const currAbove = macdLine[n - 1] > signalLine[n - 1];
-    const prevAbove = macdLine[n - 2] > signalLine[n - 2];
-    const isCrossover = currAbove !== prevAbove;
 
-    const lastDate = new Date(bars[bars.length - 1].t).toISOString().split('T')[0];
+    // Detect crossovers in last 40 weeks
+    const lookback = Math.min(40, n - 1);
+    const crossovers: { idx: number; bullish: boolean }[] = [];
+
+    for (let i = n - lookback; i < n; i++) {
+      if (i < 1) continue;
+      const prevMacd = macdLine[i - 1];
+      const prevSignal = signalLine[i - 1];
+      const currMacd = macdLine[i];
+      const currSignal = signalLine[i];
+
+      const bullishCross = (prevMacd < prevSignal) && (currMacd > currSignal);
+      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
+
+      if (bullishCross || bearishCross) {
+        crossovers.push({ idx: i, bullish: bullishCross });
+      }
+    }
+
+    const isBullish = macdLine[n - 1] > signalLine[n - 1];
     let status: string;
-    let passed: boolean;
 
-    if (isCrossover && currAbove) {
-      status = `✅ Bullish crossover (${lastDate})`;
-      passed = true;
-    } else if (isCrossover && !currAbove) {
-      status = `❌ Bearish crossover (${lastDate})`;
-      passed = false;
+    if (crossovers.length > 0) {
+      const latest = crossovers[crossovers.length - 1];
+      const crossDate = new Date(bars[latest.idx].t).toISOString().split('T')[0];
+      status = latest.bullish
+        ? `✅ Bullish crossover (${crossDate})`
+        : `❌ Bearish crossover (${crossDate})`;
     } else {
-      // No crossover - still report current state
-      status = currAbove
-        ? `✅ Bullish (MACD > Signal, no crossover)`
-        : `❌ Bearish (MACD < Signal, no crossover)`;
-      passed = currAbove;
+      status = isBullish
+        ? `✅ Bullish (MACD > Signal, no crossover in last 40 weeks)`
+        : `❌ Bearish (MACD < Signal, no crossover in last 40 weeks)`;
     }
 
     console.log(`${ticker} - weeklyMacd (${assetType}): ${status} (MACD: ${macdLine[n-1].toFixed(4)}, Signal: ${signalLine[n-1].toFixed(4)})`);
-    return { status, crossover: passed };
+    return { status, crossover: isBullish };
   } catch (error) {
     console.error(`Weekly MACD calculation error for ${ticker}:`, error);
     return { status: "❌ Weekly MACD calculation error", crossover: false };
