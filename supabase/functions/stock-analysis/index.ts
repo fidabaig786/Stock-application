@@ -351,14 +351,14 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
 
 async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    // Fetch ~3 years of weekly candle data for accurate EMA warm-up
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 1100);
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
-    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    // Fetch with sort=desc to get latest data first within limit, then sort ascending
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=desc&limit=500&apikey=${apiKey}`;
     const response = await fetchWithRetry(url);
     const data = await response.json();
 
@@ -369,10 +369,29 @@ async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ 
       return { status: "❌ Insufficient weekly data for EMA", crossover: false };
     }
 
-    const bars = data.results;
-    const closes: number[] = bars.map((r: any) => r.c);
+    // Sort ascending by timestamp for correct EMA calculation
+    const sortedResults = data.results.sort((a: any, b: any) => a.t - b.t);
 
-    // Calculate EMA 8 and EMA 21 locally using EWM (adjust=False equivalent)
+    // Drop incomplete current week
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const currentWeekMonday = new Date(today);
+    currentWeekMonday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    currentWeekMonday.setHours(0, 0, 0, 0);
+    const currentWeekMondayTs = currentWeekMonday.getTime();
+
+    let bars = sortedResults;
+    const lastBarTs = bars[bars.length - 1].t;
+    if (lastBarTs >= currentWeekMondayTs) {
+      console.log(`[EMA] ${ticker} Dropped incomplete week: ${new Date(lastBarTs).toISOString().split('T')[0]}`);
+      bars = bars.slice(0, -1);
+    }
+
+    if (bars.length < 22) {
+      return { status: "❌ Insufficient completed weekly data for EMA", crossover: false };
+    }
+
+    const closes: number[] = bars.map((r: any) => r.c);
     const ema8 = calcEWM(closes, 8);
     const ema21 = calcEWM(closes, 21);
 
@@ -397,10 +416,9 @@ async function calculateEMACrossover(ticker: string, apiKey: string): Promise<{ 
       }
     }
 
-    // Current trend
     const isBullish = ema8[n - 1] > ema21[n - 1];
-
     let status: string;
+
     if (crossovers.length > 0) {
       const latest = crossovers[crossovers.length - 1];
       const crossDate = new Date(bars[latest.idx].t).toISOString().split('T')[0];

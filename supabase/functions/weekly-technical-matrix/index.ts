@@ -287,7 +287,7 @@ async function fetchPolygonRSI(ticker: string, apiKey: string): Promise<{ values
   }
 }
 
-// ─── Local Weekly EMA Crossover (1100 days history, EWM 8/21, crossover in last 40 weeks) ───
+// ─── Local Weekly EMA Crossover (1100 days history, sort=desc, drop incomplete week, EWM 8/21, crossover in last 40 weeks) ───
 
 async function fetchAndCalcEMA(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   try {
@@ -297,7 +297,8 @@ async function fetchAndCalcEMA(ticker: string, apiKey: string): Promise<{ crosso
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
-    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    // Fetch with sort=desc to get latest data first within limit, then sort ascending
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startStr}/${endStr}?adjusted=true&sort=desc&limit=500&apikey=${apiKey}`;
     const res = await fetchWithRetry(url);
     if (!res.ok) {
       console.error(`Polygon weekly data error for EMA ${ticker}: ${res.status}`);
@@ -311,7 +312,28 @@ async function fetchAndCalcEMA(ticker: string, apiKey: string): Promise<{ crosso
       return { crossover: 'N/A' };
     }
 
-    const bars = data.results;
+    // Sort ascending by timestamp for correct EMA calculation
+    const sortedResults = data.results.sort((a: any, b: any) => a.t - b.t);
+
+    // Drop incomplete current week
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const currentWeekMonday = new Date(today);
+    currentWeekMonday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    currentWeekMonday.setHours(0, 0, 0, 0);
+    const currentWeekMondayTs = currentWeekMonday.getTime();
+
+    let bars = sortedResults;
+    const lastBarTs = bars[bars.length - 1].t;
+    if (lastBarTs >= currentWeekMondayTs) {
+      console.log(`[MATRIX-EMA] ${ticker} Dropped incomplete week: ${new Date(lastBarTs).toISOString().split('T')[0]}`);
+      bars = bars.slice(0, -1);
+    }
+
+    if (bars.length < 22) {
+      return { crossover: 'N/A' };
+    }
+
     const closes: number[] = bars.map((r: any) => r.c);
     const ema8 = calcPandasEWM(closes, 8);
     const ema21 = calcPandasEWM(closes, 21);
