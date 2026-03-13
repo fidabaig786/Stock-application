@@ -77,7 +77,7 @@ function calcRSI(closes: number[], period = 14): number[] {
   return rsi;
 }
 
-// Unified MACD logic: EWM with span fast=5, slow=13, signal=5
+// Weekly MACD logic: EWM with fast=19, slow=39, signal=9
 function calcPandasEWM(data: number[], span: number): number[] {
   if (data.length === 0) return [];
   const alpha = 2 / (span + 1);
@@ -89,21 +89,21 @@ function calcPandasEWM(data: number[], span: number): number[] {
 }
 
 function calcLocalMACD(closes: number[]): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
-  const emaFast = calcPandasEWM(closes, 5);
-  const emaSlow = calcPandasEWM(closes, 13);
+  const emaFast = calcPandasEWM(closes, 19);
+  const emaSlow = calcPandasEWM(closes, 39);
   const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalLine = calcPandasEWM(macdLine, 5);
+  const signalLine = calcPandasEWM(macdLine, 9);
   const histogram = macdLine.map((v, i) => v - signalLine[i]);
   return { macdLine, signalLine, histogram };
 }
 
-// ─── Local Weekly MACD (1100 days history, sort=desc, drop incomplete week, EWM 5/13/5, crossover in last 40 weeks) ───
+// ─── Local Weekly MACD (120 weeks history, sort=desc, drop incomplete week, EWM 19/39/9, crossover in last 30 weeks) ───
 
 async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ crossover: string }> {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1100);
+    startDate.setDate(startDate.getDate() - (120 * 7)); // 120 weeks back
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
@@ -118,7 +118,7 @@ async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ cross
     if (data.status !== "OK" && data.status !== "DELAYED") {
       return { crossover: 'N/A' };
     }
-    if (!data.results || data.results.length < 14) {
+    if (!data.results || data.results.length < 40) {
       return { crossover: 'N/A' };
     }
 
@@ -140,47 +140,50 @@ async function fetchAndCalcMACD(ticker: string, apiKey: string): Promise<{ cross
       bars = bars.slice(0, -1);
     }
 
-    if (bars.length < 14) {
+    if (bars.length < 40) {
       return { crossover: 'N/A' };
     }
 
     const closes: number[] = bars.map((r: any) => r.c);
-    // Calculate EMA 8 and EMA 21 using EWM (adjust=False equivalent)
-    const ema8 = calcPandasEWM(closes, 8);
-    const ema21 = calcPandasEWM(closes, 21);
+
+    // Calculate MACD (19/39/9) using EWM (adjust=False equivalent)
+    const emaFast = calcPandasEWM(closes, 19);
+    const emaSlow = calcPandasEWM(closes, 39);
+    const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
+    const signalLine = calcPandasEWM(macdLine, 9);
 
     const n = closes.length;
 
-    // Detect crossovers in the last 40 weeks
-    const lookback = Math.min(40, n - 1);
+    // Detect crossovers in the last 30 weeks
+    const lookback = Math.min(30, n - 1);
     let lastCrossover = 'N/A';
 
     // Check from most recent going back to find the latest crossover
     for (let i = n - 1; i >= n - lookback && i >= 1; i--) {
-      const prevEma8 = ema8[i - 1];
-      const prevEma21 = ema21[i - 1];
-      const currEma8 = ema8[i];
-      const currEma21 = ema21[i];
+      const prevMacd = macdLine[i - 1];
+      const prevSignal = signalLine[i - 1];
+      const currMacd = macdLine[i];
+      const currSignal = signalLine[i];
 
-      if (prevEma8 < prevEma21 && currEma8 >= currEma21) {
+      if (prevMacd < prevSignal && currMacd >= currSignal) {
         lastCrossover = 'Bullish';
         const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
-        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BULLISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BULLISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
         break;
-      } else if (prevEma8 > prevEma21 && currEma8 < currEma21) {
+      } else if (prevMacd > prevSignal && currMacd < currSignal) {
         lastCrossover = 'Bearish';
         const crossDate = new Date(bars[i].t).toISOString().split('T')[0];
-        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BEARISH CROSS EMA8=${currEma8.toFixed(4)} EMA21=${currEma21.toFixed(4)}`);
+        console.log(`[MATRIX-MACD] ${ticker} date=${crossDate} BEARISH CROSS MACD=${currMacd.toFixed(4)} Signal=${currSignal.toFixed(4)}`);
         break;
       }
     }
 
-    // If no crossover in last 40 weeks, use current position
+    // If no crossover in last 30 weeks, use current position
     if (lastCrossover === 'N/A') {
-      const isBullish = ema8[n - 1] >= ema21[n - 1];
+      const isBullish = macdLine[n - 1] >= signalLine[n - 1];
       lastCrossover = isBullish ? 'Bullish' : 'Bearish';
       const latestDate = new Date(bars[n - 1].t).toISOString().split('T')[0];
-      console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} NO CROSS, current: EMA8=${ema8[n-1].toFixed(4)} EMA21=${ema21[n-1].toFixed(4)} => ${lastCrossover}`);
+      console.log(`[MATRIX-MACD] ${ticker} date=${latestDate} NO CROSS, current: MACD=${macdLine[n-1].toFixed(4)} Signal=${signalLine[n-1].toFixed(4)} => ${lastCrossover}`);
     }
 
     return { crossover: lastCrossover };
@@ -463,9 +466,9 @@ serve(async (req) => {
       const ema8 = calcEMA(closes, 8);
       const ema21 = calcEMA(closes, 21);
 
-      // MACD (5/13/5 weekly close)
+      // MACD (19/39/9 weekly close)
       const macdSignal = macdMap[ticker]?.crossover ?? 'N/A';
-      // Local MACD for chart candles (5/13/5 params)
+      // Local MACD for chart candles (19/39/9 params)
       const { macdLine, signalLine, histogram } = calcLocalMACD(closes);
 
       // RRG – align by timestamp to avoid mismatched weeks
