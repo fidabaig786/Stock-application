@@ -149,8 +149,8 @@ async function calculateRSI(ticker: string, apiKey: string): Promise<{ value: nu
   }
 }
 
-// Unified MACD: fetch 120 weeks of weekly candles, remove incomplete current week,
-// calculate MACD locally using EWM (span 19/39/9), detect crossover.
+// Unified Weekly MACD: fetch 120 weeks of weekly candles, remove incomplete current week,
+// calculate MACD locally using EWM (fast=19, slow=39, signal=9), detect crossover in last 30 weeks.
 
 function calculateEMA(data: number[], period: number): number {
   if (data.length === 0) return 0;
@@ -179,7 +179,7 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1100);
+    startDate.setDate(startDate.getDate() - (120 * 7)); // 120 weeks back
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
@@ -191,7 +191,7 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
     if (data.status !== "OK" && data.status !== "DELAYED") {
       return { status: "❌ Polygon API error", crossover: false };
     }
-    if (!data.results || data.results.length < 14) {
+    if (!data.results || data.results.length < 40) {
       return { status: "❌ Insufficient weekly data for MACD", crossover: false };
     }
 
@@ -213,38 +213,40 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
       bars = bars.slice(0, -1);
     }
 
-    if (bars.length < 14) {
+    if (bars.length < 40) {
       return { status: "❌ Insufficient completed weekly data for MACD", crossover: false };
     }
 
     const closes: number[] = bars.map((r: any) => r.c);
 
-    // Calculate EMA 8 and EMA 21 using EWM (adjust=False equivalent)
-    const ema8 = calcEWM(closes, 8);
-    const ema21 = calcEWM(closes, 21);
+    // Calculate MACD (19/39/9) using EWM (adjust=False equivalent)
+    const emaFast = calcEWM(closes, 19);
+    const emaSlow = calcEWM(closes, 39);
+    const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
+    const signalLine = calcEWM(macdLine, 9);
 
     const n = closes.length;
 
-    // Detect crossovers in last 40 weeks
-    const lookback = Math.min(40, n - 1);
+    // Detect crossovers in last 30 weeks
+    const lookback = Math.min(30, n - 1);
     const crossovers: { idx: number; bullish: boolean }[] = [];
 
     for (let i = n - lookback; i < n; i++) {
       if (i < 1) continue;
-      const prevEma8 = ema8[i - 1];
-      const prevEma21 = ema21[i - 1];
-      const currEma8 = ema8[i];
-      const currEma21 = ema21[i];
+      const prevMacd = macdLine[i - 1];
+      const prevSignal = signalLine[i - 1];
+      const currMacd = macdLine[i];
+      const currSignal = signalLine[i];
 
-      const bullishCross = (prevEma8 < prevEma21) && (currEma8 > currEma21);
-      const bearishCross = (prevEma8 > prevEma21) && (currEma8 < currEma21);
+      const bullishCross = (prevMacd < prevSignal) && (currMacd > currSignal);
+      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
 
       if (bullishCross || bearishCross) {
         crossovers.push({ idx: i, bullish: bullishCross });
       }
     }
 
-    const isBullish = ema8[n - 1] > ema21[n - 1];
+    const isBullish = macdLine[n - 1] > signalLine[n - 1];
     let status: string;
 
     if (crossovers.length > 0) {
@@ -255,11 +257,11 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
         : `❌ Bearish crossover (${crossDate})`;
     } else {
       status = isBullish
-        ? `✅ Bullish (EMA_8 > EMA_21, no crossover in last 40 weeks)`
-        : `❌ Bearish (EMA_8 <= EMA_21, no crossover in last 40 weeks)`;
+        ? `✅ Bullish (MACD > Signal, no crossover in last 30 weeks)`
+        : `❌ Bearish (MACD < Signal, no crossover in last 30 weeks)`;
     }
 
-    console.log(`${ticker} - weeklyMacd (${assetType}): ${status} (EMA_8: ${ema8[n-1].toFixed(4)}, EMA_21: ${ema21[n-1].toFixed(4)})`);
+    console.log(`${ticker} - weeklyMacd (${assetType}): ${status} (MACD: ${macdLine[n-1].toFixed(4)}, Signal: ${signalLine[n-1].toFixed(4)})`);
     return { status, crossover: isBullish };
   } catch (error) {
     console.error(`Weekly MACD calculation error for ${ticker}:`, error);
