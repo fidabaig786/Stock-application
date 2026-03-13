@@ -74,6 +74,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sector_score_history: {
+        Row: {
+          created_at: string
+          id: string
+          recorded_at: string
+          score: number
+          ticker: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recorded_at: string
+          score: number
+          ticker: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recorded_at?: string
+          score?: number
+          ticker?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           cash_balance: number | null
