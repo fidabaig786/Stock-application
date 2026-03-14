@@ -209,6 +209,8 @@ export const TradingDashboard: React.FC = () => {
               onRemove={removeFromWatchlist}
               onUpdateEarningDate={updateEarningDate}
               onUpdateCompanyUrl={updateCompanyUrl}
+              onRefreshEarnings={fetchEarnings}
+              isFetchingEarnings={isFetchingEarnings}
             />
           </TabsContent>
 

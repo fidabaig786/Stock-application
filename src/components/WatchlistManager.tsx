@@ -25,6 +25,8 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   onRemove,
   onUpdateEarningDate,
   onUpdateCompanyUrl,
+  onRefreshEarnings,
+  isFetchingEarnings,
 }) => {
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
