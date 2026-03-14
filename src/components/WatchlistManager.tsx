@@ -105,15 +105,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                   className="mt-1"
                 />
               </div>
-              <div>
-                <Label htmlFor="earning-date">Next Earning Date (Optional)</Label>
-                <Input
-                  id="earning-date"
-                  type="date"
-                  value={newEarningDate}
-                  onChange={(e) => setNewEarningDate(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="hidden">
               </div>
               <div className="flex items-end">
                 <Button 
