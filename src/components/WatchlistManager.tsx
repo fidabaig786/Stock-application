@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil, Link, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Link, RefreshCw, Loader2 } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -31,7 +31,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
-  const [newEarningDate, setNewEarningDate] = useState('');
+  
   const [chartOpen, setChartOpen] = useState(false);
   const [chartTicker, setChartTicker] = useState<string | null>(null);
   const [editUrlTicker, setEditUrlTicker] = useState<string | null>(null);
@@ -45,10 +45,9 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
 
   const handleAdd = () => {
     if (newTicker.trim()) {
-      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined, newEarningDate.trim() || undefined);
+      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined);
       setNewTicker('');
       setNewCompanyUrl('');
-      setNewEarningDate('');
     }
   };
 
@@ -92,7 +91,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
                 <Label htmlFor="company-url">Company Website (Optional)</Label>
                 <Input
@@ -105,15 +104,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                   className="mt-1"
                 />
               </div>
-              <div>
-                <Label htmlFor="earning-date">Next Earning Date (Optional)</Label>
-                <Input
-                  id="earning-date"
-                  type="date"
-                  value={newEarningDate}
-                  onChange={(e) => setNewEarningDate(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="hidden">
               </div>
               <div className="flex items-end">
                 <Button 
@@ -211,20 +202,6 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                             📅 Earnings: {new Date(stock.nextEarningDate).toLocaleDateString()}
                           </span>
                         )}
-                        <span className="ml-2 inline-flex items-center gap-1">
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                          <input
-                            type="date"
-                            value={stock.nextEarningDate || ''}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              onUpdateEarningDate(stock.ticker, stock.assetType, e.target.value || null);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-6 text-xs bg-transparent border border-border rounded px-1 w-32"
-                            title="Edit next earning date"
-                          />
-                        </span>
                       </div>
                     </div>
                     <Badge variant={stock.assetType === 'Stock' ? 'default' : 'secondary'}>
