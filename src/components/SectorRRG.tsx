@@ -331,7 +331,7 @@ export const SectorRRG: React.FC = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [latestDate, setLatestDate] = useState<string | null>(null);
-  const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
+  
   const [loaded, setLoaded] = useState(false);
   const { toast } = useToast();
 
