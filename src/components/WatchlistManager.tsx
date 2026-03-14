@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil, Link } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Clock, ExternalLink, Pencil, Link, RefreshCw, Loader2 } from 'lucide-react';
 import { Stock } from '@/hooks/useWatchlist';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -15,6 +15,8 @@ interface WatchlistManagerProps {
   onRemove: (ticker: string, assetType: 'Stock' | 'Option') => void;
   onUpdateEarningDate: (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => void;
   onUpdateCompanyUrl: (ticker: string, assetType: 'Stock' | 'Option', newUrl: string | null) => void;
+  onRefreshEarnings: (tickers: string[]) => void;
+  isFetchingEarnings: boolean;
 }
 
 export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
@@ -23,6 +25,8 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   onRemove,
   onUpdateEarningDate,
   onUpdateCompanyUrl,
+  onRefreshEarnings,
+  isFetchingEarnings,
 }) => {
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
@@ -128,13 +132,30 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
       {/* Current Watchlist */}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Your Watchlist ({watchlist.length})
-          </CardTitle>
-          <CardDescription>
-            Manage your current stock and options watchlist
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Your Watchlist ({watchlist.length})
+              </CardTitle>
+              <CardDescription>
+                Manage your current stock and options watchlist. Earnings dates are auto-fetched.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isFetchingEarnings || watchlist.length === 0}
+              onClick={() => onRefreshEarnings(watchlist.map(s => s.ticker))}
+            >
+              {isFetchingEarnings ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Refresh Earnings
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {watchlist.length === 0 ? (

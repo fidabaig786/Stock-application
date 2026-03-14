@@ -90,7 +90,7 @@ export const TradingDashboard: React.FC = () => {
 
   const { toast } = useToast();
   const { user, signOut } = useAuth();
-  const { watchlist, addToWatchlist, removeFromWatchlist, updateEarningDate, updateCompanyUrl, isLoading } = useWatchlist();
+  const { watchlist, addToWatchlist, removeFromWatchlist, updateEarningDate, updateCompanyUrl, fetchEarnings, isFetchingEarnings, isLoading } = useWatchlist();
 
   const runAnalysis = async () => {
     const filteredWatchlist = watchlist.filter(stock => stock.assetType === selectedAssetType);
@@ -209,6 +209,8 @@ export const TradingDashboard: React.FC = () => {
               onRemove={removeFromWatchlist}
               onUpdateEarningDate={updateEarningDate}
               onUpdateCompanyUrl={updateCompanyUrl}
+              onRefreshEarnings={fetchEarnings}
+              isFetchingEarnings={isFetchingEarnings}
             />
           </TabsContent>
 

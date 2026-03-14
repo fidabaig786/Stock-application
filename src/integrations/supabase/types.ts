@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      earnings_cache: {
+        Row: {
+          created_at: string
+          earnings_date: string | null
+          eps_estimate: number | null
+          fetched_at: string
+          id: string
+          raw_data: Json | null
+          revenue_estimate: number | null
+          ticker: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          earnings_date?: string | null
+          eps_estimate?: number | null
+          fetched_at?: string
+          id?: string
+          raw_data?: Json | null
+          revenue_estimate?: number | null
+          ticker: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          earnings_date?: string | null
+          eps_estimate?: number | null
+          fetched_at?: string
+          id?: string
+          raw_data?: Json | null
+          revenue_estimate?: number | null
+          ticker?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       portfolio_positions: {
         Row: {
           buy_date: string

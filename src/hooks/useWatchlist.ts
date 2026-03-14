@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -214,6 +214,42 @@ export const useWatchlist = () => {
     }
   };
 
+  const [isFetchingEarnings, setIsFetchingEarnings] = useState(false);
+
+  const fetchEarnings = useCallback(async (tickers: string[]) => {
+    if (tickers.length === 0) return;
+    setIsFetchingEarnings(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-earnings', {
+        body: { tickers },
+      });
+
+      if (error) {
+        console.error('Error fetching earnings:', error);
+        toast({
+          title: "Earnings fetch error",
+          description: "Failed to fetch earnings dates",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.results) {
+        setWatchlist(prev => prev.map(stock => {
+          const earningsData = data.results[stock.ticker];
+          if (earningsData?.date) {
+            return { ...stock, nextEarningDate: earningsData.date };
+          }
+          return stock;
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
+    } finally {
+      setIsFetchingEarnings(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     loadWatchlist();
 
@@ -225,13 +261,23 @@ export const useWatchlist = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Auto-fetch earnings when watchlist loads
+  useEffect(() => {
+    if (!isLoading && watchlist.length > 0) {
+      const tickers = watchlist.map(s => s.ticker);
+      fetchEarnings(tickers);
+    }
+  }, [isLoading, watchlist.length]);
+
   return {
     watchlist,
     isLoading,
+    isFetchingEarnings,
     addToWatchlist,
     removeFromWatchlist,
     updateCompanyUrl,
     updateEarningDate,
+    fetchEarnings,
     refreshWatchlist: loadWatchlist,
   };
 };
