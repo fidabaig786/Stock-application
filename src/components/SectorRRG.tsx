@@ -343,26 +343,8 @@ export const SectorRRG: React.FC = () => {
 
       setLatestDate(data.latestDate || null);
 
-      // RRG chart data
-      const rows: MatrixRow[] = (data.results || []).map((r: any) => ({
-        ticker: r.ticker,
-        currentPrice: null,
-        rsi: null,
-        rsiLabel: null,
-        emaCrossover: null,
-        macdSignal: null,
-        rrgQuadrant: r.quadrant,
-        rrgTrail: (r.trail || []).map((pt: any) => ({
-          rsRatio: pt.rsRatio,
-          rsMomentum: pt.rsMomentum,
-          date: pt.date,
-        })),
-        burst: null,
-        weeklyCandles: [],
-      }));
-      setMatrixData(rows);
-
       // Dashboard data
+
       if (data.dashboard) {
         setDashboard(data.dashboard);
       }
