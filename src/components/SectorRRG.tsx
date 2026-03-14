@@ -328,7 +328,6 @@ const BullSpreadFilter: React.FC<{ items: BullSpreadItem[] }> = ({ items }) => {
 // ─── Main Component ───
 
 export const SectorRRG: React.FC = () => {
-  const [matrixData, setMatrixData] = useState<MatrixRow[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [latestDate, setLatestDate] = useState<string | null>(null);
