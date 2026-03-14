@@ -15,6 +15,8 @@ interface WatchlistManagerProps {
   onRemove: (ticker: string, assetType: 'Stock' | 'Option') => void;
   onUpdateEarningDate: (ticker: string, assetType: 'Stock' | 'Option', newDate: string | null) => void;
   onUpdateCompanyUrl: (ticker: string, assetType: 'Stock' | 'Option', newUrl: string | null) => void;
+  onRefreshEarnings: (tickers: string[]) => void;
+  isFetchingEarnings: boolean;
 }
 
 export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
