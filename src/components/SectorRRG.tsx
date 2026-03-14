@@ -13,8 +13,6 @@ import {
 import { Loader2, RefreshCw, PieChart, TrendingUp, BarChart3, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RRGChart } from './RRGChart';
-import { MatrixRow } from '@/hooks/useWeeklyMatrix';
 
 interface SectorRecord {
   ticker: string;
@@ -330,11 +328,10 @@ const BullSpreadFilter: React.FC<{ items: BullSpreadItem[] }> = ({ items }) => {
 // ─── Main Component ───
 
 export const SectorRRG: React.FC = () => {
-  const [matrixData, setMatrixData] = useState<MatrixRow[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [latestDate, setLatestDate] = useState<string | null>(null);
-  const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
+  
   const [loaded, setLoaded] = useState(false);
   const { toast } = useToast();
 
@@ -346,26 +343,8 @@ export const SectorRRG: React.FC = () => {
 
       setLatestDate(data.latestDate || null);
 
-      // RRG chart data
-      const rows: MatrixRow[] = (data.results || []).map((r: any) => ({
-        ticker: r.ticker,
-        currentPrice: null,
-        rsi: null,
-        rsiLabel: null,
-        emaCrossover: null,
-        macdSignal: null,
-        rrgQuadrant: r.quadrant,
-        rrgTrail: (r.trail || []).map((pt: any) => ({
-          rsRatio: pt.rsRatio,
-          rsMomentum: pt.rsMomentum,
-          date: pt.date,
-        })),
-        burst: null,
-        weeklyCandles: [],
-      }));
-      setMatrixData(rows);
-
       // Dashboard data
+
       if (data.dashboard) {
         setDashboard(data.dashboard);
       }
@@ -390,44 +369,29 @@ export const SectorRRG: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* RRG Chart (kept) */}
-      <Card className="bg-gradient-card shadow-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5 text-primary" />
-              Sector RRG (Quadrant)
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                Benchmark: SPY
-                {latestDate && <> &nbsp;|&nbsp; Data as of {latestDate}</>}
-              </span>
-              <Button size="sm" variant="outline" onClick={fetchRRG} disabled={isLoading}>
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading && matrixData.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-3 text-muted-foreground">Loading sector rotation data (this may take a minute)...</span>
-            </div>
-          ) : matrixData.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              Click Refresh to load sector RRG data
-            </div>
-          ) : (
-            <RRGChart
-              data={matrixData}
-              highlightedTicker={highlightedTicker}
-              onTickerClick={(t) => setHighlightedTicker(prev => prev === t ? null : t)}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {/* Header with refresh */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <PieChart className="h-5 w-5 text-primary" />
+          Sector Rotation Dashboard
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            Benchmark: SPY
+            {latestDate && <> &nbsp;|&nbsp; Data as of {latestDate}</>}
+          </span>
+          <Button size="sm" variant="outline" onClick={fetchRRG} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </div>
+
+      {isLoading && !dashboard && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-3 text-muted-foreground">Loading sector rotation data (this may take a minute)...</span>
+        </div>
+      )}
 
       {/* Dashboard Tables */}
       {dashboard && (
