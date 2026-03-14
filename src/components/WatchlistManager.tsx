@@ -132,13 +132,30 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
       {/* Current Watchlist */}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Your Watchlist ({watchlist.length})
-          </CardTitle>
-          <CardDescription>
-            Manage your current stock and options watchlist
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Your Watchlist ({watchlist.length})
+              </CardTitle>
+              <CardDescription>
+                Manage your current stock and options watchlist. Earnings dates are auto-fetched.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isFetchingEarnings || watchlist.length === 0}
+              onClick={() => onRefreshEarnings(watchlist.map(s => s.ticker))}
+            >
+              {isFetchingEarnings ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Refresh Earnings
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {watchlist.length === 0 ? (
