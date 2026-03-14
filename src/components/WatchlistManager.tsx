@@ -203,20 +203,6 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
                             📅 Earnings: {new Date(stock.nextEarningDate).toLocaleDateString()}
                           </span>
                         )}
-                        <span className="ml-2 inline-flex items-center gap-1">
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                          <input
-                            type="date"
-                            value={stock.nextEarningDate || ''}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              onUpdateEarningDate(stock.ticker, stock.assetType, e.target.value || null);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-6 text-xs bg-transparent border border-border rounded px-1 w-32"
-                            title="Edit next earning date"
-                          />
-                        </span>
                       </div>
                     </div>
                     <Badge variant={stock.assetType === 'Stock' ? 'default' : 'secondary'}>
