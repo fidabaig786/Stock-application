@@ -45,10 +45,9 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
 
   const handleAdd = () => {
     if (newTicker.trim()) {
-      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined, newEarningDate.trim() || undefined);
+      onAdd(newTicker.trim(), newAssetType, newCompanyUrl.trim() || undefined);
       setNewTicker('');
       setNewCompanyUrl('');
-      setNewEarningDate('');
     }
   };
 
