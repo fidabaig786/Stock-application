@@ -31,7 +31,7 @@ export const WatchlistManager: React.FC<WatchlistManagerProps> = ({
   const [newTicker, setNewTicker] = useState('');
   const [newAssetType, setNewAssetType] = useState<'Stock' | 'Option'>('Stock');
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
-  const [newEarningDate, setNewEarningDate] = useState('');
+  
   const [chartOpen, setChartOpen] = useState(false);
   const [chartTicker, setChartTicker] = useState<string | null>(null);
   const [editUrlTicker, setEditUrlTicker] = useState<string | null>(null);
