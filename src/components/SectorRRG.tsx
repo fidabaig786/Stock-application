@@ -13,8 +13,6 @@ import {
 import { Loader2, RefreshCw, PieChart, TrendingUp, BarChart3, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RRGChart } from './RRGChart';
-import { MatrixRow } from '@/hooks/useWeeklyMatrix';
 
 interface SectorRecord {
   ticker: string;
