@@ -271,14 +271,15 @@ async function calculateWeeklyMACD(ticker: string, apiKey: string, assetType: st
 
 async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ status: string; crossover: boolean }> {
   try {
-    // Fetch 150 days of daily candle data for EMA warm-up
+    // Fetch 300 days of daily candle data (matching Python: days_back=300)
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 150);
+    startDate.setDate(startDate.getDate() - 300);
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
 
-    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${startStr}/${endStr}?adjusted=true&sort=asc&limit=500&apikey=${apiKey}`;
+    // Sort desc to get latest data first within limit, then sort ascending
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${startStr}/${endStr}?adjusted=true&sort=desc&limit=500&apikey=${apiKey}`;
     const response = await fetchWithRetry(url);
     const data = await response.json();
 
@@ -289,8 +290,25 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
       return { status: "❌ Insufficient daily data for MACD", crossover: false };
     }
 
-    // Do NOT remove today's candle - use most recent data available
-    const bars = data.results;
+    // Sort ascending by timestamp for correct EMA calculation
+    const sortedResults = data.results.sort((a: any, b: any) => a.t - b.t);
+
+    // Drop today's incomplete candle if present (matching Python: df.iloc[:-1] when last date == today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTs = today.getTime();
+    let bars = sortedResults;
+    const lastBarDate = new Date(bars[bars.length - 1].t);
+    lastBarDate.setHours(0, 0, 0, 0);
+    if (lastBarDate.getTime() >= todayTs) {
+      console.log(`[DailyMACD] ${ticker} Dropped today's candle: ${new Date(bars[bars.length - 1].t).toISOString().split('T')[0]}`);
+      bars = bars.slice(0, -1);
+    }
+
+    if (bars.length < 20) {
+      return { status: "❌ Insufficient completed daily data for MACD", crossover: false };
+    }
+
     const closes: number[] = bars.map((r: any) => r.c);
 
     // Calculate MACD using EWM (fast=5, slow=13, signal=5)
@@ -299,45 +317,45 @@ async function calculateDailyMACD(ticker: string, apiKey: string): Promise<{ sta
     const macdLine = emaFast.map((v: number, i: number) => v - emaSlow[i]);
     const signalLine = calcEWM(macdLine, 5);
 
-    // Detect crossovers using prev_macd/prev_signal comparison
     const n = macdLine.length;
-    const lookback = Math.min(30, n - 1);
 
-    // Find all crossovers in the lookback period
-    let latestCrossoverIdx = -1;
-    for (let i = n - lookback; i < n; i++) {
-      if (i < 1) continue;
+    // Detect crossovers across entire dataset (matching Python: no lookback limit)
+    const crossovers: { idx: number; bullish: boolean }[] = [];
+    for (let i = 1; i < n; i++) {
       const prevMacd = macdLine[i - 1];
       const prevSignal = signalLine[i - 1];
       const currMacd = macdLine[i];
       const currSignal = signalLine[i];
 
-      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
       const bullishCross = (prevMacd < prevSignal) && (currMacd > currSignal);
+      const bearishCross = (prevMacd > prevSignal) && (currMacd < currSignal);
 
-      if (bearishCross || bullishCross) {
-        latestCrossoverIdx = i;
+      if (bullishCross || bearishCross) {
+        crossovers.push({ idx: i, bullish: bullishCross });
       }
     }
 
     let status: string;
     let passed: boolean;
 
-    if (latestCrossoverIdx >= 0) {
-      const crossDate = new Date(bars[latestCrossoverIdx].t).toISOString().split('T')[0];
-      const isBullish = macdLine[latestCrossoverIdx] > signalLine[latestCrossoverIdx];
-      if (isBullish) {
-        status = `✅ Bullish crossover (${crossDate})`;
+    if (crossovers.length > 0) {
+      const latest = crossovers[crossovers.length - 1];
+      const crossDate = new Date(bars[latest.idx].t).toISOString().split('T')[0];
+      const crossDateObj = new Date(bars[latest.idx].t);
+      crossDateObj.setHours(0, 0, 0, 0);
+      const daysAgo = Math.round((today.getTime() - crossDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      if (latest.bullish) {
+        status = `✅ Bullish crossover (${crossDate}, ${daysAgo}d ago)`;
         passed = true;
       } else {
-        status = `❌ Bearish crossover (${crossDate})`;
+        status = `❌ Bearish crossover (${crossDate}, ${daysAgo}d ago)`;
         passed = false;
       }
     } else {
       const currAbove = macdLine[n - 1] > signalLine[n - 1];
       status = currAbove
-        ? `✅ Bullish (MACD > Signal, no crossover in last 30 days)`
-        : `❌ Bearish (MACD < Signal, no crossover in last 30 days)`;
+        ? `✅ Bullish (MACD > Signal, no crossover found)`
+        : `❌ Bearish (MACD < Signal, no crossover found)`;
       passed = currAbove;
     }
 
