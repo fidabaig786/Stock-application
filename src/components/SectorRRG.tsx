@@ -396,8 +396,8 @@ export const SectorRRG: React.FC = () => {
       {/* Dashboard Tables */}
       {dashboard && (
         <>
-          <PerformanceHeatmap sectors={dashboard.sectors} spyReturns={dashboard.spyReturns} />
-          <RSHeatmap sectors={dashboard.sectors} />
+          {/* <PerformanceHeatmap sectors={dashboard.sectors} spyReturns={dashboard.spyReturns} /> */}
+          {/* <RSHeatmap sectors={dashboard.sectors} /> */}
           <CompositeRanking sectors={dashboard.sectors} />
           <BullSpreadFilter items={dashboard.bullSpread} />
         </>
