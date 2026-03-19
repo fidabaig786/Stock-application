@@ -584,7 +584,7 @@ serve(async (req) => {
     }
 
     const resend = new Resend(RESEND_API_KEY);
-    const EMAIL_RECEIVER = "dhiraj.gautam@gmail.com";
+    const EMAIL_RECEIVERS = ["dhiraj.gautam@gmail.com", "fidalaqani@gmail.com"];
 
     console.log('Starting daily market email...');
 
@@ -601,7 +601,7 @@ serve(async (req) => {
 
     const emailResponse = await resend.emails.send({
       from: "MyStockData <onboarding@resend.dev>",
-      to: [EMAIL_RECEIVER],
+      to: EMAIL_RECEIVERS,
       subject: `📊 Daily Market Brief | ${biasResult.bias} | QQQ $${biasResult.price.toFixed(2)}`,
       html,
     });
