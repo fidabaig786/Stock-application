@@ -601,7 +601,7 @@ serve(async (req) => {
 
     const emailResponse = await resend.emails.send({
       from: "MyStockData <onboarding@resend.dev>",
-      to: [EMAIL_RECEIVER],
+      to: EMAIL_RECEIVERS,
       subject: `📊 Daily Market Brief | ${biasResult.bias} | QQQ $${biasResult.price.toFixed(2)}`,
       html,
     });
