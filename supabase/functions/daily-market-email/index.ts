@@ -584,7 +584,7 @@ serve(async (req) => {
     }
 
     const resend = new Resend(RESEND_API_KEY);
-    const EMAIL_RECEIVERS = ["fidalaqani@gmail.com"];
+    const EMAIL_RECEIVERS = ["dhiraj.gautam@gmail.com"];
 
     console.log('Starting daily market email...');
 
