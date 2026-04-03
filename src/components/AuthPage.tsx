@@ -83,7 +83,7 @@ const AuthPage = () => {
 
       const redirectUrl = window.location.hostname === 'localhost' 
         ? `${window.location.origin}/`
-        : 'https://mynewapp1.fly.dev/';
+        : 'https://dhirajstokeapplication.fly.dev/';
       
       const { data, error } = await supabase.auth.signUp({
         email,
