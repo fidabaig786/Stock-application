@@ -115,8 +115,12 @@ const AuthPage = () => {
     setIsLoading(true);
 
     try {
+      const redirectUrl = window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/auth`
+        : 'https://mynewapp1.fly.dev/auth';
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: redirectUrl,
       });
 
       if (error) throw error;
