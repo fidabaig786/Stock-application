@@ -82,7 +82,6 @@ Deno.serve(async (req) => {
     }
 
     // Fetch from Finnhub for stale tickers
-    const todayStr = today.toISOString().split('T')[0];
     const endDate = new Date(today);
     endDate.setDate(endDate.getDate() + FORWARD_DAYS);
     const endStr = endDate.toISOString().split('T')[0];
