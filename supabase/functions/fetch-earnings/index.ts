@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() - CACHE_EXPIRY_DAYS);
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0];
 
     // Fetch all cached entries for these tickers
     const { data: cachedRows, error: cacheError } = await supabase
@@ -58,8 +59,11 @@ Deno.serve(async (req) => {
 
     for (const ticker of upperTickers) {
       const cached = cacheMap.get(ticker);
-      if (cached && cached.fetched_at >= cutoffStr) {
-        // Cache is valid
+      const isCacheRecent = cached && cached.fetched_at >= cutoffStr;
+      const isEarningsInPast = cached?.earnings_date && cached.earnings_date < todayStr;
+
+      if (isCacheRecent && !isEarningsInPast) {
+        // Cache is valid and earnings date is still in the future (or null)
         if (cached.earnings_date) {
           const earningsDate = new Date(cached.earnings_date);
           const daysTo = Math.ceil((earningsDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -78,7 +82,6 @@ Deno.serve(async (req) => {
     }
 
     // Fetch from Finnhub for stale tickers
-    const todayStr = today.toISOString().split('T')[0];
     const endDate = new Date(today);
     endDate.setDate(endDate.getDate() + FORWARD_DAYS);
     const endStr = endDate.toISOString().split('T')[0];
