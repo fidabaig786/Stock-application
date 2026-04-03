@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() - CACHE_EXPIRY_DAYS);
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0];
 
     // Fetch all cached entries for these tickers
     const { data: cachedRows, error: cacheError } = await supabase
