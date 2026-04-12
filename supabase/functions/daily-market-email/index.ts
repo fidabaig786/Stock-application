@@ -153,30 +153,34 @@ function crossJustHappened(closes: number[], fastPeriod: number, slowPeriod: num
   return null;
 }
 
-// ─── VIX via Yahoo Finance (avoids Polygon rate limits) ───
+// ─── VIX via Polygon (reliable in all runtimes) ───
 
-async function fetchVIX(_apiKey: string): Promise<{ vix: number | null; vixChg1w: number | null; vixSpiking: boolean; vixFallingFast: boolean }> {
+async function fetchVIX(apiKey: string): Promise<{ vix: number | null; vixChg1w: number | null; vixSpiking: boolean; vixFallingFast: boolean }> {
+  const fallback = { vix: null, vixChg1w: null, vixSpiking: false, vixFallingFast: false };
   try {
-    const end = Math.floor(Date.now() / 1000);
-    const start = end - 90 * 86400;
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?period1=${start}&period2=${end}&interval=1d`;
+    // Polygon uses I:VIX for the CBOE VIX index
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    const url = `https://api.polygon.io/v2/aggs/ticker/I:VIX/range/1/day/${fmt_date(start)}/${fmt_date(end)}?adjusted=true&sort=asc&limit=50&apiKey=${apiKey}`;
+    console.log(`[VIX] Fetching from Polygon: ${fmt_date(start)} to ${fmt_date(end)}`);
     const res = await fetchWithRetry(url);
     const data = await res.json();
-    const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-    if (!closes || closes.length < 6) {
-      console.error('VIX: not enough data from Yahoo Finance');
-      return { vix: null, vixChg1w: null, vixSpiking: false, vixFallingFast: false };
+    const results = data?.results;
+    if (!results || results.length < 6) {
+      console.error(`[VIX] Not enough data from Polygon: got ${results?.length ?? 0} bars. Status: ${data?.status}, queryCount: ${data?.queryCount}`);
+      return fallback;
     }
-    // Filter out null values from the end
-    const validCloses = closes.filter((c: number | null) => c !== null);
-    if (validCloses.length < 6) return { vix: null, vixChg1w: null, vixSpiking: false, vixFallingFast: false };
-    const vix = Math.round(validCloses[validCloses.length - 1] * 100) / 100;
-    const vix1w = validCloses[validCloses.length - 6];
+    const closes = results.map((b: any) => b.c);
+    const vix = Math.round(closes[closes.length - 1] * 100) / 100;
+    const vix1w = closes[closes.length - 6];
     const vixChg1w = Math.round((vix - vix1w) * 100) / 100;
+    console.log(`[VIX] OK: current=${vix}, 1w_ago=${vix1w}, chg=${vixChg1w}`);
     return { vix, vixChg1w, vixSpiking: vixChg1w > 5, vixFallingFast: vixChg1w < -3 };
-  } catch (e) {
-    console.error('VIX fetch error:', e);
-    return { vix: null, vixChg1w: null, vixSpiking: false, vixFallingFast: false };
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.error(`[VIX] Fetch error: ${errMsg}`);
+    return fallback;
   }
 }
 
