@@ -77,7 +77,7 @@ npm run preview    # Preview production build locally
 
 ## Deployment
 
-This project is deployed on **Fly.io** at [https://dhirajstokeapplication.fly.dev/](https://dhirajstokeapplication.fly.dev/).
+This project is deployed on **Fly.io**.
 
 A `Dockerfile`, `nginx.conf`, and `fly.toml` are included for containerized deployment. To redeploy:
 
